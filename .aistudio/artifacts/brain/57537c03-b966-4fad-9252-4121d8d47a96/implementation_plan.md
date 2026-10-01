@@ -1,121 +1,134 @@
-# Multi-User Session Isolation & Architectural Strategy for 10,000+ Public Users
+# Sticky Mobile Header Fix & Progressive Web App (PWA) Integration Plan
 
-Comprehensive analysis, code review, and architectural blueprint to transition the AI Career Agent from a shared single-instance model to isolated, auto-scaled Cloudflare Durable Object instances per user session with real-time multi-device synchronization.
+Fix the mobile header visibility with a sticky top bar and expandable menu drawer, and turn CV Mama into an installable Progressive Web App (PWA) featuring a floating install banner, offline caching, and iOS install instructions.
 
 ## User Review & Critical Decisions
 
 > [!IMPORTANT]
-> The current system uses `useAgent({ agent: "ChatAgent" })` without specifying an instance `name`. Consequently, Cloudflare routes every single public visitor to the same default Durable Object instance (`idFromName("ChatAgent")`), broadcasting chat messages and overwriting career profile data across all visitors.
+> The following decisions were confirmed by the user in Phase 1:
 
-- **Session Isolation Strategy**: Generate an isolated, unique session identifier (`sessionId`) for anonymous guests, and use `user_${userId}` for signed-in Clerk users as the Durable Object instance `name`.
-- **Multi-Device / Multi-Tab Synchronization**: Any browser or tab using the same `sessionId` or user account connects to the exact same dedicated DO instance, providing live WebSocket state sync and shared D1 persistence.
-- **Session Switching & Shareable URLs**: Provide a clean header control displaying the active session ID with a copy-link feature (`?session=...`) so users can easily sync their session across different browsers or devices.
+- **PWA Install Button Placement**: Floating banner at the top of the chat area.
+- **Service Worker Caching Strategy**: Auto-update with offline caching of app UI and static assets (`vite-plugin-pwa`).
+- **Mobile Header Structure**: Sticky top bar with logo/logoname and an expandable mobile menu drawer for navigation and controls.
 
 ---
 
 ## 1. Overview & Core Concept
 
-### Problem Analysis
-1. **Single Room Contention**: Currently, `useAgent({ agent: "ChatAgent" })` omits the `name` parameter. Cloudflare Agents SDK defaults `name` to `"ChatAgent"`, causing all connections to map to a single global Durable Object instance (`idFromName("ChatAgent")`).
-2. **Data Leakage & State Mutation**: When User A parses a resume or chats, `this.broadcast(...)` transmits the state change to all connected WebSocket clients globally.
-3. **Scalability Limits**: A single Durable Object instance cannot scale to 10,000+ concurrent active public users due to per-instance CPU and WebSocket limits.
-
-### The Solution
-1. **Actor-Model Scale**: Cloudflare Durable Objects are lightweight edge actors that scale seamlessly to millions of distinct instances. By passing a dynamic `name` parameter to `useAgent({ agent: "ChatAgent", name: sessionOrUserId })`, each user automatically gets a dedicated, isolated Durable Object instance.
-2. **Persistent Identity Bridge**:
-   - **Guest Session**: Auto-generated UUID stored in `localStorage` (`cv_session_id`) or read from URL query param (`?session=...`).
-   - **Authenticated Session**: Derived from Clerk user ID (`user_${user.userId}`).
-3. **Cross-Tab & Cross-Device Sync**: Multiple tabs or devices with the same `sessionId` or user account connect to the identical DO actor, syncing chat history and Career Master Data in real time without interfering with other users.
+CV Mama will be enhanced with full PWA compliance, allowing users to install the career agent directly onto their iOS or Android home screen or desktop OS as a native-like standalone application. The mobile header will be redesigned as a sticky top navigation bar with a clean brand title and an expandable mobile drawer containing auth status, theme toggle, clear history, and developer tools.
 
 ---
 
 ## 2. User Experience & Visual Design
 
 ### Key User Flows
-1. **First-Time Guest Entry**:
-   - User visits the app in Browser 1. An isolated session key (`session_a1b2c3d4...`) is instantiated.
-   - `useAgent` connects directly to dedicated DO actor `session_a1b2c3d4...`.
-   - The user sees an empty, private chat history and clean onboarding screen.
-2. **Multi-Browser Sync (Guest)**:
-   - User clicks "Share / Copy Link" in the header to copy `https://.../?session=session_a1b2c3d4...`.
-   - User opens the link in Browser 2.
-   - Browser 2 connects to the SAME DO actor `session_a1b2c3d4...`.
-   - Actions in Browser 1 immediately reflect in Browser 2 via WebSocket broadcast.
-3. **Authenticated User Sync**:
-   - User signs in with Clerk on Browser 1. The DO instance name seamlessly switches to `user_usr_12345`.
-   - User signs in on Browser 2 or phone. Both devices connect to DO actor `user_usr_12345`.
-   - D1 profile state and chat state are fully synchronized across all authenticated devices.
 
-### Header UI Enhancements
-- **Session Status Control**: Quiet, unboxed session indicator in the header bar showing active mode (`Guest: session_a1b2...` or `Cloud: user_usr_...`).
-- **Session Actions**: Compact dropdown menu allowing users to copy session share link, start a fresh isolated session, or manage signed-in cloud sync.
-- **Visual Polish**: Retains minimal visual footprint according to design discipline (no garish badges, smooth transitions, dark/light mode optical balance).
+1. **Sticky Mobile Top Header & Expandable Drawer**:
+   - As users scroll through long chat conversations, the top app bar remains pinned (`sticky top-0 z-30 backdrop-blur-md`).
+   - Shows the CV Mama brand wordmark and logo on the left.
+   - On small screens (`< 640px`), an expandable hamburger menu button (`ListIcon`) toggles a smooth mobile drawer containing Theme Toggle, Auth Status, Clear Chat, and Debug/MCP controls.
+
+2. **Floating PWA Install Banner**:
+   - When opened in a browser (Chromium/Android/Desktop) that supports PWA installation, a floating banner appears at the top of the chat feed with a prominent **"Install App"** CTA button.
+   - For iOS Safari users, tapping "Install on iOS" presents an interactive modal guide detailing the 2-step Safari "Add to Home Screen" process.
+   - Once installed or running in `standalone` mode, the banner automatically suppresses itself.
+
+3. **Offline & Connectivity Support**:
+   - Service worker caches the application bundle and static assets for instant offline load.
+   - When network connectivity is lost, a quiet offline indicator banner informs the user that cached data is being displayed.
 
 ---
 
-## 3. Key Product Decisions & Trade-Offs
+## 3. Technical Architecture & Data Strategy
 
-### Decision 1: Session Key Generation & Resolution Order
-- **Chosen Approach**: Resolve session name in priority order:
-  1. Signed-in Clerk User ID (`user_${user.userId}`)
-  2. URL Query Parameter (`?session=${urlSessionId}`)
-  3. Existing `localStorage` session ID (`cv_session_id`)
-  4. Auto-generated crypto UUID (`session_${crypto.randomUUID()}`)
-- **Why**: Ensures zero friction for anonymous visitors while supporting explicit cross-browser sharing and automatic account-level sync.
-
-### Decision 2: Durable Object State & D1 Persistence
-- **Chosen Approach**: Store active chat messages and in-memory career state inside the dedicated Durable Object's SQLite storage (`this.ctx.storage`), while syncing long-term profile data to D1 `user_profiles` table.
-- **Why**: Provides instantaneous WebSocket responses from the DO's local memory while safeguarding master data in global D1 SQL storage.
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                        CV Mama PWA Architecture                        │
+├────────────────────────────────────────────────────────────────────────┤
+│                                                                        │
+│   ┌────────────────────────────────────────────────────────────────┐   │
+│   │                     Sticky Top Header                          │   │
+│   │   [CV Mama Logo + Name]               [Hamburger Menu Button]  │   │
+│   └───────────────────────────────┬────────────────────────────────┘   │
+│                                   │ Toggles                            │
+│                                   ▼                                    │
+│   ┌────────────────────────────────────────────────────────────────┐   │
+│   │                 Expandable Mobile Menu Drawer                  │   │
+│   │   • Auth / Cloud Sync Status    • Theme Toggle (Light/Dark)    │   │
+│   │   • Clear Chat History          • Developer Tools (in dev mode) │   │
+│   └────────────────────────────────────────────────────────────────┘   │
+│                                                                        │
+│   ┌────────────────────────────────────────────────────────────────┐   │
+│   │                 Floating PWA Install Banner                    │   │
+│   │   "Install CV Mama on your home screen for quick access"       │   │
+│   │   [Install App] / [iOS Guide]                    [Dismiss]     │   │
+│   └────────────────────────────────────────────────────────────────┘   │
+│                                                                        │
+│   ┌────────────────────────────────────────────────────────────────┐   │
+│   │                      Main Chat View                            │   │
+│   │   • Master Data Onboarding / Profile Summary                   │   │
+│   │   • Agent Streamdown Messages & Reasoning Processes            │   │
+│   │   • Quick Action Suggestions                                   │   │
+│   └────────────────────────────────────────────────────────────────┘   │
+│                                                                        │
+│   ┌────────────────────────────────────────────────────────────────┐   │
+│   │           VitePWA Service Worker (Auto-Update Caching)          │   │
+│   │   • Pre-caches App Shell, Fonts, Icons, and CSS                │   │
+│   │   • Serves Web App Manifest (`/manifest.webmanifest`)          │   │
+│   └────────────────────────────────────────────────────────────────┘   │
+│                                                                        │
+└────────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## 4. Technical Architecture & Data Strategy
+## 4. Proposed Changes & Implementation Steps
 
-### System Architecture Diagram
+### Phase 1: PWA Package & Config (`vite-plugin-pwa`)
+- Install `vite-plugin-pwa` as a dev dependency.
+- Configure `vite.config.ts` to include `VitePWA` plugin:
+  - `registerType: 'autoUpdate'`
+  - `devOptions: { enabled: true }`
+  - Web App Manifest definition (`name: "CV Mama Career Agent"`, `short_name: "CVMama"`, `start_url: "/"`, `display: "standalone"`, `theme_color: "#4898AD"`, `background_color: "#0d0e11"`).
+- Update `env.d.ts` / `tsconfig.json` to include `"vite-plugin-pwa/client"` types.
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           BROWSER CLIENTS                                   │
-│                                                                             │
-│  Browser A (Guest Session 1)        Browser B (Guest Session 2)              │
-│  [ useAgent(name: "session_abc") ]  [ useAgent(name: "session_xyz") ]       │
-│               │                                   │                         │
-│  Browser A2 (Same Session 1)                      │                         │
-│  [ useAgent(name: "session_abc") ]                │                         │
-└───────────────┼───────────────────────────────────┼─────────────────────────┘
-                │ WebSockets / RPC                  │ WebSockets / RPC
-                ▼                                   ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                       CLOUDFLARE WORKER ROUTER                              │
-│                    routeAgentRequest(request, env)                          │
-└───────────────┬───────────────────────────────────┬─────────────────────────┘
-                │ idFromName("session_abc")         │ idFromName("session_xyz")
-                ▼                                   ▼
-┌─────────────────────────────────┐   ┌─────────────────────────────────┐
-│     DURABLE OBJECT INSTANCE     │   │     DURABLE OBJECT INSTANCE     │
-│   ChatAgent ("session_abc")     │   │   ChatAgent ("session_xyz")     │
-│  • Private State (this.state)   │   │  • Private State (this.state)   │
-│  • Private History              │   │  • Private History              │
-│  • Broadcasts ONLY to session   │   │  • Broadcasts ONLY to session   │
-└───────────────┬─────────────────┘   └───────────────┬─────────────────┘
-                │                                     │
-                └──────────────────┬──────────────────┘
-                                   │ SQL Queries
-                                   ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                          D1 DATABASE (GLOBAL)                               │
-│  Table: user_profiles (user_id PRIMARY KEY, resume_json, updated_at)       │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+### Phase 2: PWA Icons & Assets
+- Generate compliant PNG icons in `public/`:
+  - `pwa-192x192.png`
+  - `pwa-512x512.png`
+  - `apple-touch-icon.png` (180x180)
+  - `pwa-maskable-512x512.png`
+- Update `index.html` head tags to link `<link rel="apple-touch-icon" href="/apple-touch-icon.png">` and manifest links.
 
-### Component & State Mapping
+### Phase 3: PWA Hooks & Components
+- Create `src/hooks/usePWAInstall.ts`:
+  - Captures `beforeinstallprompt` event.
+  - Detects standalone mode and iOS Safari device.
+  - Returns `install()`, `isInstallable`, `isInstalled`, and `isIOS`.
+- Create `src/components/PWAInstallBanner.tsx`:
+  - Floating dismissible banner positioned at the top of the chat area.
+  - Step-by-step modal popup for iOS users.
+- Create `src/hooks/useOnlineStatus.ts` and `src/components/OfflineIndicator.tsx`.
 
-1. **`src/app.tsx`**:
-   - Introduce `useSessionManager()` hook to derive `sessionKey` (from Clerk, URL query param, or `localStorage`).
-   - Pass `name: sessionKey` to `useAgent<ChatAgent>({ agent: "ChatAgent", name: sessionKey, ... })`.
-   - Update `AuthNavControls` to display active session information and offer "New Session" or "Copy Sync Link" controls.
-2. **`src/server.ts`**:
-   - `ChatAgent` extends `AIChatAgent<AppEnv, CareerState>`.
-   - `this.state` and `this.messages` are automatically scoped per DO instance.
-   - `this.broadcast(...)` will now transmit updates *only* to WebSockets connected to that specific DO actor instance.
-   - Ensure `syncProfileToDb` binds `this.state.userId || sessionKey` into `user_profiles` table in D1.
+### Phase 4: Mobile Header Redesign & Expandable Drawer
+- In `src/app.tsx`:
+  - Convert `<header>` into a sticky top bar (`sticky top-0 z-30`).
+  - Add brand logo + "CV Mama Career Agent" wordmark.
+  - Add mobile hamburger button trigger for `<640px>` screens.
+  - Build expandable mobile drawer menu displaying:
+    - Auth & Cloud Sync Status controls (`AuthNavControls`).
+    - Agent Online / Connection status badge.
+    - Theme Toggle button (`SunIcon` / `MoonIcon`).
+    - Clear Chat History button.
+    - Dev Tools (MCP & Debug switch when in dev mode).
+  - Mount `PWAInstallBanner` floating at the top of the chat view.
+
+---
+
+## 5. Verification & Testing Checklist
+
+- [ ] **Mobile Header Verification**: Verify header is sticky, visible on mobile viewports, and expandable menu opens and closes cleanly.
+- [ ] **PWA Manifest Verification**: Verify Web App Manifest serves with correct `id`, `start_url`, `theme_color`, and icon definitions.
+- [ ] **Install Prompt Verification**: Verify floating install banner appears, triggers native install prompt on supported browsers, and shows iOS instructions on Safari.
+- [ ] **Service Worker Verification**: Verify service worker registers and precaches static assets for offline availability.
+- [ ] **Build & Lint Verification**: Run `compile_applet` and `lint_applet` to confirm zero compilation or linter errors.

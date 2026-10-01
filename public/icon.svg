@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="128" fill="#4898AD"/>
+  <g transform="translate(64, 64)" fill="#FFFFFF">
+    <!-- C Letter -->
+    <text x="30" y="270" font-family="'Outfit', -apple-system, sans-serif" font-weight="700" font-size="220">C</text>
+    
+    <!-- V Letter with Cap -->
+    <g transform="translate(180, 0)">
+      <!-- Graduation Cap -->
+      <path d="M90 60 L20 100 L90 140 L160 100 Z" fill="#FFFFFF" opacity="0.95"/>
+      <path d="M55 125 V160 C55 175 70 185 90 185 C110 185 125 175 125 160 V125" stroke="#FFFFFF" stroke-width="12" stroke-linecap="round" fill="none"/>
+      <path d="M150 110 V165" stroke="#FFFFFF" stroke-width="10" stroke-linecap="round"/>
+      <circle cx="150" cy="172" r="8" fill="#FFFFFF"/>
+      
+      <!-- V text -->
+      <text x="25" y="270" font-family="'Outfit', -apple-system, sans-serif" font-weight="600" font-size="220">V</text>
+    </g>
+
+    <!-- Subtitle: mama -->
+    <text x="95" y="340" font-family="'Georgia', serif" font-weight="500" font-size="72" letter-spacing="4" opacity="0.95">mama</text>
+  </g>
+</svg>

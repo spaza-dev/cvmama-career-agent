@@ -38,11 +38,14 @@ import {
   BriefcaseIcon,
   ClipboardTextIcon,
   ShareNetworkIcon,
-  PlusCircleIcon
+  PlusCircleIcon,
+  ListIcon
 } from "@phosphor-icons/react";
 import { useAppUser, AuthNavControls } from "./auth";
 import { ResumeDrawer } from "./components/ResumeDrawer";
 import { Logo } from "./components/Logo";
+import { PWAInstallBanner } from "./components/PWAInstallBanner";
+import { OfflineIndicator } from "./components/OfflineIndicator";
 import { extractResumeText } from "./utils/documentExtractor";
 import { type ResumeData, isProfileOnboarded } from "./types";
 import {
@@ -290,6 +293,7 @@ function Chat() {
   const [showDebug, setShowDebug] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [resumeProfile, setResumeProfile] = useState<ResumeData | null>(() => {
     try {
       const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
@@ -782,7 +786,7 @@ function Chat() {
 
   return (
     <div
-      className="flex flex-col h-screen bg-kumo-elevated relative"
+      className="flex flex-col h-[100dvh] bg-kumo-elevated relative overflow-hidden"
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
@@ -798,23 +802,24 @@ function Chat() {
         </div>
       )}
 
-      {/* Top Header App Bar */}
-      <header className="px-3 sm:px-5 py-2.5 sm:py-3 bg-kumo-base border-b border-kumo-line shrink-0 z-20">
+      {/* Sticky Top Header App Bar */}
+      <header className="sticky top-0 z-30 bg-kumo-base/95 backdrop-blur-md border-b border-kumo-line shrink-0 px-3 sm:px-5 py-2.5 sm:py-3 shadow-xs">
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-2 sm:gap-3">
+          {/* Left: Brand Logo & Title */}
           <div className="flex items-center gap-2 sm:gap-3">
             <Logo size="sm" className="sm:hidden" />
             <Logo size="md" className="hidden sm:inline-flex" />
-            <span className="hidden sm:inline-block h-4 w-px bg-kumo-line" />
-            <span className="hidden md:inline-block text-xs text-kumo-subtle font-medium">
+            <span className="h-4 w-px bg-kumo-line" />
+            <span className="text-xs text-kumo-default font-semibold tracking-tight">
               Career Agent
             </span>
           </div>
 
-          <div className="flex items-center gap-1.5 sm:gap-2.5">
-            {/* Auth / Storage state */}
+          {/* Desktop Right Controls (hidden on mobile < 640px) */}
+          <div className="hidden sm:flex items-center gap-2">
             <AuthNavControls />
 
-            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-kumo-control/50 border border-kumo-line/60">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-kumo-control/50 border border-kumo-line/60">
               <span
                 className={`inline-block h-2 w-2 rounded-full ${
                   connected
@@ -836,7 +841,7 @@ function Chat() {
               onClick={handleCopySyncLink}
               title="Copy session link to sync across browsers"
             >
-              <span className="hidden sm:inline">Sync Link</span>
+              Sync Link
             </Button>
 
             {!user.isSignedIn && (
@@ -847,11 +852,11 @@ function Chat() {
                 onClick={handleCreateNewSession}
                 title="Start a new isolated session"
               >
-                <span className="hidden md:inline">New Session</span>
+                New Session
               </Button>
             )}
 
-            {/* Developer debug & MCP tools - shown ONLY on desktop in dev mode */}
+            {/* Developer debug & MCP tools */}
             {isDev && (
               <>
                 <div className="hidden lg:flex items-center gap-1.5 pl-1">
@@ -864,7 +869,7 @@ function Chat() {
                   />
                 </div>
 
-                <div className="relative hidden sm:block" ref={mcpPanelRef}>
+                <div className="relative" ref={mcpPanelRef}>
                   <Button
                     variant="secondary"
                     icon={<PlugsConnectedIcon size={15} className="text-kumo-subtle" />}
@@ -882,7 +887,6 @@ function Chat() {
                   {showMcpPanel && (
                     <div className="absolute right-0 top-full mt-2 w-96 z-50">
                       <Surface className="rounded-xl border border-kumo-line shadow-xl p-4 space-y-4 bg-kumo-base">
-                        {/* Panel Header */}
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <PlugsConnectedIcon size={15} className="text-kumo-subtle" />
@@ -903,7 +907,6 @@ function Chat() {
                           />
                         </div>
 
-                        {/* Add Server Form */}
                         <form
                           onSubmit={(e) => {
                             e.preventDefault();
@@ -940,7 +943,6 @@ function Chat() {
                           </div>
                         </form>
 
-                        {/* Server List */}
                         {serverEntries.length > 0 && (
                           <div className="space-y-2 max-h-60 overflow-y-auto">
                             {serverEntries.map(([id, server]) => (
@@ -1017,15 +1019,113 @@ function Chat() {
               icon={<TrashIcon size={15} className="text-kumo-subtle" />}
               onClick={clearHistory}
             >
-              <span className="hidden sm:inline">Clear</span>
+              Clear
             </Button>
           </div>
+
+          {/* Mobile Right Controls: Expandable Hamburger Menu Toggle */}
+          <div className="flex sm:hidden items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="rounded-xl p-2 text-kumo-default hover:bg-kumo-control transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center active:scale-95 border border-kumo-line/60 bg-kumo-control/30"
+              aria-label={isMobileMenuOpen ? "Close menu" : "Open mobile menu"}
+            >
+              {isMobileMenuOpen ? <XIcon size={20} /> : <ListIcon size={20} />}
+            </button>
+          </div>
         </div>
+
+        {/* Expandable Mobile Menu Drawer */}
+        {isMobileMenuOpen && (
+          <div className="sm:hidden border-t border-kumo-line bg-kumo-base/98 backdrop-blur-md px-4 py-3.5 space-y-3 shadow-lg animate-in slide-in-from-top-2 duration-200 mt-2 rounded-2xl">
+            <div className="flex items-center justify-between pt-1">
+              <Text size="xs" variant="secondary" bold>
+                Account & Storage
+              </Text>
+              <AuthNavControls />
+            </div>
+
+            <div className="flex items-center justify-between py-1 border-t border-kumo-line/50 text-xs">
+              <span className="text-kumo-subtle">Connection State</span>
+              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-kumo-control border border-kumo-line font-mono text-[11px] text-kumo-default">
+                <span className={`h-1.5 w-1.5 rounded-full ${connected ? "bg-[#4898AD]" : "bg-zinc-400 animate-pulse"}`} />
+                {user.isSignedIn ? "Cloud Session" : `Guest ID: ${guestSessionId.slice(8, 16)}`}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 pt-1 border-t border-kumo-line/50">
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<ShareNetworkIcon size={14} className="text-kumo-subtle" />}
+                onClick={() => {
+                  handleCopySyncLink();
+                  setIsMobileMenuOpen(false);
+                }}
+                className="min-h-[40px] text-xs justify-start"
+              >
+                Copy Sync Link
+              </Button>
+
+              {!user.isSignedIn && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={<PlusCircleIcon size={14} className="text-kumo-subtle" />}
+                  onClick={() => {
+                    handleCreateNewSession();
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="min-h-[40px] text-xs justify-start"
+                >
+                  New Session
+                </Button>
+              )}
+
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<TrashIcon size={14} className="text-kumo-subtle" />}
+                onClick={() => {
+                  clearHistory();
+                  setIsMobileMenuOpen(false);
+                }}
+                className="min-h-[40px] text-xs justify-start"
+              >
+                Clear Chat
+              </Button>
+
+              <div className="flex items-center justify-between px-3 py-1.5 rounded-xl border border-kumo-line/60 bg-kumo-control/30 min-h-[40px]">
+                <span className="text-xs font-medium text-kumo-default">Theme</span>
+                <ThemeToggle />
+              </div>
+            </div>
+
+            {isDev && (
+              <div className="pt-2 border-t border-kumo-line/50 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <BugIcon size={14} className="text-kumo-subtle" />
+                  <span className="text-xs text-kumo-subtle">Debug Mode</span>
+                </div>
+                <Switch
+                  checked={showDebug}
+                  onCheckedChange={setShowDebug}
+                  size="sm"
+                  aria-label="Toggle debug mode"
+                />
+              </div>
+            )}
+          </div>
+        )}
       </header>
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-3xl mx-auto px-3 sm:px-5 py-4 sm:py-6 space-y-4 sm:space-y-5">
+          {/* Floating PWA Install Banner */}
+          <PWAInstallBanner />
+
           {messages.length === 0 && (
             <div className="space-y-4 py-2 sm:py-4">
               {!isOnboarded ? (
@@ -1484,6 +1584,8 @@ function Chat() {
           <span>© 2026 CV Mama · Career Agent</span>
         </div>
       </div>
+
+      <OfflineIndicator />
 
       <ResumeDrawer
         isOpen={isResumeDrawerOpen}
