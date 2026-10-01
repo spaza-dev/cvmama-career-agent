@@ -9,7 +9,6 @@ import {
   Button,
   Empty,
   InputArea,
-  PoweredByCloudflare,
   Surface,
   Switch,
   Text
@@ -21,8 +20,6 @@ import {
   PaperPlaneRightIcon,
   StopIcon,
   TrashIcon,
-  ChatCircleDotsIcon,
-  CircleIcon,
   MoonIcon,
   SunIcon,
   CheckCircleIcon,
@@ -43,6 +40,7 @@ import {
 } from "@phosphor-icons/react";
 import { useAppUser, AuthNavControls } from "./auth";
 import { ResumeDrawer } from "./components/ResumeDrawer";
+import { Logo } from "./components/Logo";
 import { extractResumeText } from "./utils/documentExtractor";
 import { type ResumeData, isProfileOnboarded } from "./types";
 
@@ -140,10 +138,10 @@ function ToolPartView({
   if (part.state === "approval-requested") {
     const approvalId = part.approval?.id;
     return (
-      <div className="my-2 p-3 rounded-lg border border-kumo-line bg-kumo-control">
+      <div className="my-2 p-3.5 rounded-xl border border-kumo-line bg-kumo-base shadow-xs">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <BrainIcon size={16} className="text-kumo-brand" />
+            <BrainIcon size={15} className="text-kumo-subtle" />
             <Text size="xs" bold>
               Tool Approval: {toolName}
             </Text>
@@ -194,10 +192,10 @@ function ToolPartView({
 
     return (
       <div className="my-2">
-        <Surface className="p-3 rounded-xl text-xs border border-kumo-line bg-kumo-base shadow-xs space-y-2.5">
+        <Surface className="p-3.5 rounded-xl text-xs border border-kumo-line bg-kumo-base shadow-xs space-y-2.5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-kumo-default">
-              <CheckCircleIcon size={15} className="text-kumo-brand" />
+              <CheckCircleIcon size={15} className="text-kumo-subtle" />
               <Text size="xs" bold>
                 {isParse
                   ? "Resume Parsed · Ready for Confirmation"
@@ -210,7 +208,7 @@ function ToolPartView({
               <Button
                 variant="secondary"
                 size="sm"
-                icon={<IdentificationCardIcon size={13} />}
+                icon={<IdentificationCardIcon size={13} className="text-kumo-subtle" />}
                 onClick={onOpenDrawer}
               >
                 Inspect in Drawer
@@ -219,7 +217,7 @@ function ToolPartView({
           </div>
 
           {isParse && resumeData?.basics?.name ? (
-            <div className="rounded-lg bg-kumo-control/50 p-3 text-xs space-y-2">
+            <div className="rounded-lg bg-kumo-control/40 border border-kumo-line/60 p-3 text-xs space-y-2">
               <div>
                 <div className="font-semibold text-kumo-default">
                   {resumeData.basics.name}
@@ -233,9 +231,9 @@ function ToolPartView({
               </div>
 
               {onConfirmMasterData && (
-                <div className="pt-2 flex items-center justify-between border-t border-kumo-line">
+                <div className="pt-2 flex items-center justify-between border-t border-kumo-line/60">
                   <span className="text-[11px] text-kumo-subtle">
-                    Reply in chat or confirm here to lock in:
+                    Confirm to lock into your career intelligence suite:
                   </span>
                   <Button
                     variant="primary"
@@ -259,9 +257,9 @@ function ToolPartView({
   if (part.state === "input-available") {
     return (
       <div className="my-1">
-        <Surface className="p-2 rounded-lg text-xs border border-kumo-line">
+        <Surface className="p-2.5 rounded-xl text-xs border border-kumo-line bg-kumo-base shadow-xs">
           <div className="flex items-center gap-1.5 text-kumo-subtle">
-            <BrainIcon size={14} className="animate-spin text-kumo-brand" />
+            <BrainIcon size={14} className="animate-spin text-kumo-subtle" />
             <Text size="xs">Running {toolName}...</Text>
           </div>
           <ToolIO label="Input" value={part.input} />
@@ -279,6 +277,7 @@ const LOCAL_STORAGE_KEY = "career_coach_resume_profile";
 
 function Chat() {
   const user = useAppUser();
+  const isDev = Boolean(import.meta.env.DEV);
   const [connected, setConnected] = useState(false);
   const [input, setInput] = useState("");
   const [showDebug, setShowDebug] = useState(false);
@@ -750,9 +749,9 @@ function Chat() {
       onDrop={handleDrop}
     >
       {isDragging && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-kumo-elevated/80 backdrop-blur-sm border-2 border-dashed border-kumo-brand rounded-xl m-2 pointer-events-none">
-          <div className="flex flex-col items-center gap-2 text-kumo-brand">
-            <UploadSimpleIcon size={40} />
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-kumo-base/90 backdrop-blur-sm border-2 border-dashed border-kumo-line rounded-2xl m-3 pointer-events-none">
+          <div className="flex flex-col items-center gap-2 text-kumo-default">
+            <UploadSimpleIcon size={36} className="text-kumo-subtle" />
             <Text variant="heading3" as="span">
               Drop resume (.pdf, .docx, .txt) or images here
             </Text>
@@ -760,217 +759,198 @@ function Chat() {
         </div>
       )}
 
-      {/* Header (clean without upload button) */}
-      <header className="px-5 py-4 bg-kumo-base border-b border-kumo-line">
+      {/* Header */}
+      <header className="px-5 py-3 bg-kumo-base border-b border-kumo-line shrink-0">
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <h1 className="text-lg font-semibold text-kumo-default flex items-center gap-2">
-              <BriefcaseIcon size={20} weight="bold" className="text-kumo-brand" />
-              <span>CV Mama Career Agent</span>
-            </h1>
-            <Badge variant="secondary" className="hidden sm:inline-flex">
-              <ChatCircleDotsIcon size={12} weight="bold" className="mr-1 text-kumo-brand" />
+            <Logo size="md" />
+            <span className="hidden sm:inline-block h-4 w-px bg-kumo-line" />
+            <span className="hidden sm:inline-block text-xs text-kumo-subtle font-medium">
               Career Agent
-            </Badge>
+            </span>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3">
-            {/* Clerk Auth / Guest persistence controls */}
+          <div className="flex items-center gap-2 sm:gap-2.5">
+            {/* Auth / Storage state */}
             <AuthNavControls />
 
-            <div className="hidden md:flex items-center gap-1.5">
-              <CircleIcon
-                size={8}
-                weight="fill"
-                className={connected ? "text-kumo-success" : "text-kumo-danger"}
+            <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-kumo-control/50 border border-kumo-line/60">
+              <span
+                className={`inline-block h-1.5 w-1.5 rounded-full ${
+                  connected
+                    ? "bg-[#4898AD] dark:bg-[#60B2C7]"
+                    : "bg-zinc-300 dark:bg-zinc-700 animate-pulse"
+                }`}
               />
-              <Text size="xs" variant="secondary">
-                {connected ? "Connected" : "Disconnected"}
-              </Text>
+              <span className="text-[11px] text-kumo-subtle font-medium">
+                {connected ? "Agent Online" : "Connecting..."}
+              </span>
             </div>
 
-            <div className="hidden lg:flex items-center gap-1.5">
-              <BugIcon size={14} className="text-kumo-inactive" />
-              <Switch
-                checked={showDebug}
-                onCheckedChange={setShowDebug}
-                size="sm"
-                aria-label="Toggle debug mode"
-              />
-            </div>
+            {/* Developer debug & MCP tools - shown ONLY in dev environment */}
+            {isDev && (
+              <>
+                <div className="hidden lg:flex items-center gap-1.5 pl-1">
+                  <BugIcon size={14} className="text-kumo-subtle" />
+                  <Switch
+                    checked={showDebug}
+                    onCheckedChange={setShowDebug}
+                    size="sm"
+                    aria-label="Toggle debug mode"
+                  />
+                </div>
+
+                <div className="relative" ref={mcpPanelRef}>
+                  <Button
+                    variant="secondary"
+                    icon={<PlugsConnectedIcon size={15} className="text-kumo-subtle" />}
+                    onClick={() => setShowMcpPanel(!showMcpPanel)}
+                  >
+                    MCP
+                    {mcpToolCount > 0 && (
+                      <span className="ml-1 text-[11px] font-mono text-kumo-subtle">
+                        ({mcpToolCount})
+                      </span>
+                    )}
+                  </Button>
+
+                  {/* MCP Dropdown Panel */}
+                  {showMcpPanel && (
+                    <div className="absolute right-0 top-full mt-2 w-96 z-50">
+                      <Surface className="rounded-xl border border-kumo-line shadow-xl p-4 space-y-4 bg-kumo-base">
+                        {/* Panel Header */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <PlugsConnectedIcon size={15} className="text-kumo-subtle" />
+                            <Text size="sm" bold>
+                              MCP Servers (Dev)
+                            </Text>
+                            {serverEntries.length > 0 && (
+                              <Badge variant="secondary">{serverEntries.length}</Badge>
+                            )}
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            shape="square"
+                            aria-label="Close MCP panel"
+                            icon={<XIcon size={14} />}
+                            onClick={() => setShowMcpPanel(false)}
+                          />
+                        </div>
+
+                        {/* Add Server Form */}
+                        <form
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            handleAddServer();
+                          }}
+                          className="space-y-2"
+                        >
+                          <input
+                            type="text"
+                            value={mcpName}
+                            onChange={(e) => setMcpName(e.target.value)}
+                            aria-label="MCP server name"
+                            placeholder="Server name"
+                            className="w-full px-3 py-1.5 text-xs rounded-lg border border-kumo-line bg-kumo-base text-kumo-default placeholder:text-kumo-inactive focus:outline-none focus:ring-1 focus:ring-kumo-ring"
+                          />
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={mcpUrl}
+                              onChange={(e) => setMcpUrl(e.target.value)}
+                              aria-label="MCP server URL"
+                              placeholder="https://mcp.example.com"
+                              className="flex-1 px-3 py-1.5 text-xs rounded-lg border border-kumo-line bg-kumo-base text-kumo-default placeholder:text-kumo-inactive focus:outline-none focus:ring-1 focus:ring-kumo-ring font-mono"
+                            />
+                            <Button
+                              type="submit"
+                              variant="primary"
+                              size="sm"
+                              icon={<PlusIcon size={14} />}
+                              disabled={isAddingServer || !mcpName.trim() || !mcpUrl.trim()}
+                            >
+                              {isAddingServer ? "..." : "Add"}
+                            </Button>
+                          </div>
+                        </form>
+
+                        {/* Server List */}
+                        {serverEntries.length > 0 && (
+                          <div className="space-y-2 max-h-60 overflow-y-auto">
+                            {serverEntries.map(([id, server]) => (
+                              <div
+                                key={id}
+                                className="flex items-start justify-between p-2.5 rounded-lg border border-kumo-line bg-kumo-control/30"
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-medium text-kumo-default truncate">
+                                      {server.name}
+                                    </span>
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-kumo-control border border-kumo-line text-kumo-subtle">
+                                      {server.state}
+                                    </span>
+                                  </div>
+                                  <span className="text-[11px] font-mono text-kumo-subtle truncate block mt-0.5">
+                                    {server.server_url}
+                                  </span>
+                                  {server.state === "failed" && server.error && (
+                                    <span className="text-[11px] text-kumo-subtle block mt-0.5">
+                                      {server.error}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0 ml-2">
+                                  {server.state === "authenticating" && server.auth_url && (
+                                    <Button
+                                      variant="primary"
+                                      size="sm"
+                                      icon={<SignInIcon size={12} />}
+                                      onClick={() =>
+                                        window.open(server.auth_url as string, "oauth", "width=600,height=800")
+                                      }
+                                    >
+                                      Auth
+                                    </Button>
+                                  )}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    shape="square"
+                                    aria-label="Remove server"
+                                    icon={<TrashIcon size={12} />}
+                                    onClick={() => handleRemoveServer(id)}
+                                  />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {mcpToolCount > 0 && (
+                          <div className="pt-2 border-t border-kumo-line">
+                            <div className="flex items-center gap-2">
+                              <WrenchIcon size={13} className="text-kumo-subtle" />
+                              <span className="text-xs text-kumo-subtle">
+                                {mcpToolCount} tool{mcpToolCount !== 1 ? "s" : ""} available
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </Surface>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
 
             <ThemeToggle />
 
-            <div className="relative" ref={mcpPanelRef}>
-              <Button
-                variant="secondary"
-                icon={<PlugsConnectedIcon size={16} />}
-                onClick={() => setShowMcpPanel(!showMcpPanel)}
-              >
-                MCP
-                {mcpToolCount > 0 && (
-                  <Badge variant="primary" className="ml-1.5">
-                    <WrenchIcon size={10} className="mr-0.5" />
-                    {mcpToolCount}
-                  </Badge>
-                )}
-              </Button>
-
-              {/* MCP Dropdown Panel */}
-              {showMcpPanel && (
-                <div className="absolute right-0 top-full mt-2 w-96 z-50">
-                  <Surface className="rounded-xl ring ring-kumo-line shadow-lg p-4 space-y-4">
-                    {/* Panel Header */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <PlugsConnectedIcon
-                          size={16}
-                          className="text-kumo-accent"
-                        />
-                        <Text size="sm" bold>
-                          MCP Servers
-                        </Text>
-                        {serverEntries.length > 0 && (
-                          <Badge variant="secondary">
-                            {serverEntries.length}
-                          </Badge>
-                        )}
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        shape="square"
-                        aria-label="Close MCP panel"
-                        icon={<XIcon size={14} />}
-                        onClick={() => setShowMcpPanel(false)}
-                      />
-                    </div>
-
-                    {/* Add Server Form */}
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        handleAddServer();
-                      }}
-                      className="space-y-2"
-                    >
-                      <input
-                        type="text"
-                        value={mcpName}
-                        onChange={(e) => setMcpName(e.target.value)}
-                        aria-label="MCP server name"
-                        placeholder="Server name"
-                        className="w-full px-3 py-1.5 text-sm rounded-lg border border-kumo-line bg-kumo-base text-kumo-default placeholder:text-kumo-inactive focus:outline-none focus:ring-1 focus:ring-kumo-accent"
-                      />
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          value={mcpUrl}
-                          onChange={(e) => setMcpUrl(e.target.value)}
-                          aria-label="MCP server URL"
-                          placeholder="https://mcp.example.com"
-                          className="flex-1 px-3 py-1.5 text-sm rounded-lg border border-kumo-line bg-kumo-base text-kumo-default placeholder:text-kumo-inactive focus:outline-none focus:ring-1 focus:ring-kumo-accent font-mono"
-                        />
-                        <Button
-                          type="submit"
-                          variant="primary"
-                          size="sm"
-                          icon={<PlusIcon size={14} />}
-                          disabled={
-                            isAddingServer || !mcpName.trim() || !mcpUrl.trim()
-                          }
-                        >
-                          {isAddingServer ? "..." : "Add"}
-                        </Button>
-                      </div>
-                    </form>
-
-                    {/* Server List */}
-                    {serverEntries.length > 0 && (
-                      <div className="space-y-2 max-h-60 overflow-y-auto">
-                        {serverEntries.map(([id, server]) => (
-                          <div
-                            key={id}
-                            className="flex items-start justify-between p-2.5 rounded-lg border border-kumo-line"
-                          >
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium text-kumo-default truncate">
-                                  {server.name}
-                                </span>
-                                <Badge
-                                  variant={
-                                    server.state === "ready"
-                                      ? "primary"
-                                      : server.state === "failed"
-                                        ? "destructive"
-                                        : "secondary"
-                                  }
-                                >
-                                  {server.state}
-                                </Badge>
-                              </div>
-                              <span className="text-xs font-mono text-kumo-subtle truncate block mt-0.5">
-                                {server.server_url}
-                              </span>
-                              {server.state === "failed" && server.error && (
-                                <span className="text-xs text-red-500 block mt-0.5">
-                                  {server.error}
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-1 shrink-0 ml-2">
-                              {server.state === "authenticating" &&
-                                server.auth_url && (
-                                  <Button
-                                    variant="primary"
-                                    size="sm"
-                                    icon={<SignInIcon size={12} />}
-                                    onClick={() =>
-                                      window.open(
-                                        server.auth_url as string,
-                                        "oauth",
-                                        "width=600,height=800"
-                                      )
-                                    }
-                                  >
-                                    Auth
-                                  </Button>
-                                )}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                shape="square"
-                                aria-label="Remove server"
-                                icon={<TrashIcon size={12} />}
-                                onClick={() => handleRemoveServer(id)}
-                              />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Tool Summary */}
-                    {mcpToolCount > 0 && (
-                      <div className="pt-2 border-t border-kumo-line">
-                        <div className="flex items-center gap-2">
-                          <WrenchIcon size={14} className="text-kumo-subtle" />
-                          <span className="text-xs text-kumo-subtle">
-                            {mcpToolCount} tool
-                            {mcpToolCount !== 1 ? "s" : ""} available from MCP
-                            servers
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                  </Surface>
-                </div>
-              )}
-            </div>
             <Button
               variant="secondary"
-              icon={<TrashIcon size={16} />}
+              icon={<TrashIcon size={15} className="text-kumo-subtle" />}
               onClick={clearHistory}
             >
               Clear
@@ -986,58 +966,58 @@ function Chat() {
             <div className="space-y-4 py-4">
               {!isOnboarded ? (
                 /* ONBOARDING CARD ONLY - NO "How can I help" card when not onboarded */
-                <div className="rounded-2xl border border-kumo-line bg-kumo-base p-6 shadow-sm space-y-5">
+                <div className="rounded-2xl border border-kumo-line bg-kumo-base p-6 sm:p-7 shadow-xs space-y-6">
                   <div className="text-center max-w-lg mx-auto space-y-2">
-                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-kumo-brand/10 text-kumo-brand">
-                      <IdentificationCardIcon size={26} weight="bold" />
+                    <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-kumo-control border border-kumo-line/80 text-kumo-default shadow-2xs">
+                      <IdentificationCardIcon size={22} />
                     </div>
-                    <h2 className="text-lg font-semibold text-kumo-default">
+                    <h2 className="text-base sm:text-lg font-semibold text-kumo-default tracking-tight">
                       Career Master Data Onboarding
                     </h2>
                     <p className="text-xs text-kumo-subtle leading-relaxed">
-                      Your Career Master Data is the single source of truth for all intelligent job searches, tailored resumes and cover letters, STAR mock interview prep, and career progression roadmaps. Onboard your profile first to get started.
+                      Your Career Master Data is the single source of truth for intelligent role matching, tailored applications, STAR mock interviews, and career progression roadmaps.
                     </p>
                   </div>
 
-                  {/* Mode tabs: Upload vs Paste */}
-                  <div className="flex justify-center border-b border-kumo-line">
-                    <div className="flex gap-2">
+                  {/* Mode tabs: Segmented Pill */}
+                  <div className="flex justify-center">
+                    <div className="inline-flex p-1 rounded-xl bg-kumo-control border border-kumo-line/70 gap-1">
                       <button
                         type="button"
                         onClick={() => setOnboardingTab("upload")}
-                        className={`flex items-center gap-2 pb-2.5 px-3 text-xs font-medium border-b-2 transition-colors ${
+                        className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium rounded-lg transition-all ${
                           onboardingTab === "upload"
-                            ? "border-kumo-brand text-kumo-brand"
-                            : "border-transparent text-kumo-subtle hover:text-kumo-default"
+                            ? "bg-kumo-base text-kumo-default shadow-xs"
+                            : "text-kumo-subtle hover:text-kumo-default"
                         }`}
                       >
-                        <UploadSimpleIcon size={15} />
-                        <span>Upload Resume File</span>
+                        <UploadSimpleIcon size={14} className="text-kumo-subtle" />
+                        <span>Upload File</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => setOnboardingTab("paste")}
-                        className={`flex items-center gap-2 pb-2.5 px-3 text-xs font-medium border-b-2 transition-colors ${
+                        className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium rounded-lg transition-all ${
                           onboardingTab === "paste"
-                            ? "border-kumo-brand text-kumo-brand"
-                            : "border-transparent text-kumo-subtle hover:text-kumo-default"
+                            ? "bg-kumo-base text-kumo-default shadow-xs"
+                            : "text-kumo-subtle hover:text-kumo-default"
                         }`}
                       >
-                        <ClipboardTextIcon size={15} />
-                        <span>Paste Resume Text</span>
+                        <ClipboardTextIcon size={14} className="text-kumo-subtle" />
+                        <span>Paste Text</span>
                       </button>
                     </div>
                   </div>
 
                   {/* Tab contents */}
                   {onboardingTab === "upload" ? (
-                    <div className="p-6 rounded-xl border border-dashed border-kumo-line bg-kumo-control/30 text-center space-y-3">
-                      <p className="text-xs text-kumo-subtle max-w-md mx-auto">
+                    <div className="p-6 rounded-xl border border-dashed border-kumo-line bg-kumo-control/20 text-center space-y-3.5">
+                      <p className="text-xs text-kumo-subtle max-w-md mx-auto leading-relaxed">
                         Upload your resume in <strong>PDF</strong>, <strong>DOCX</strong>, or <strong>TXT</strong> format. The Agent parses details and prompts you for confirmation before persisting.
                       </p>
                       <Button
                         variant="primary"
-                        icon={<UploadSimpleIcon size={16} />}
+                        icon={<UploadSimpleIcon size={15} />}
                         disabled={isExtractingResume}
                         onClick={() => resumeFileInputRef.current?.click()}
                       >
@@ -1051,10 +1031,10 @@ function Chat() {
                         onChange={(e) => setPastedResumeText(e.target.value)}
                         placeholder="Paste your resume content here (e.g. contact details, experience, education, skills, projects)..."
                         rows={6}
-                        className="w-full p-3 text-xs rounded-xl border border-kumo-line bg-kumo-control/30 text-kumo-default placeholder:text-kumo-inactive focus:outline-none focus:ring-1 focus:ring-kumo-brand resize-y font-mono"
+                        className="w-full p-3.5 text-xs rounded-xl border border-kumo-line bg-kumo-control/20 text-kumo-default placeholder:text-kumo-inactive focus:outline-none focus:ring-1 focus:ring-kumo-ring resize-y font-mono"
                       />
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px] text-kumo-subtle">
+                        <span className="text-[11px] text-kumo-subtle font-mono">
                           {pastedResumeText.trim().length} characters
                         </span>
                         <Button
@@ -1071,23 +1051,23 @@ function Chat() {
                   )}
 
                   {/* Subtle 4-step progress indicator */}
-                  <div className="pt-2 border-t border-kumo-line">
+                  <div className="pt-2 border-t border-kumo-line/60">
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
-                      <div className="p-2 rounded-lg bg-kumo-control/40">
-                        <div className="text-[10px] uppercase font-bold text-kumo-brand">Step 1</div>
-                        <div className="text-xs text-kumo-default font-medium mt-0.5">Upload or Paste</div>
+                      <div className="p-2.5 rounded-lg bg-kumo-control/40 border border-kumo-line/50">
+                        <div className="text-[10px] uppercase font-semibold text-kumo-default tracking-wider">Step 1</div>
+                        <div className="text-xs text-kumo-subtle font-medium mt-0.5">Upload or Paste</div>
                       </div>
-                      <div className="p-2 rounded-lg bg-kumo-control/40">
-                        <div className="text-[10px] uppercase font-bold text-kumo-subtle">Step 2</div>
-                        <div className="text-xs text-kumo-default font-medium mt-0.5">Agent Parses</div>
+                      <div className="p-2.5 rounded-lg bg-kumo-control/40 border border-kumo-line/50">
+                        <div className="text-[10px] uppercase font-semibold text-kumo-subtle tracking-wider">Step 2</div>
+                        <div className="text-xs text-kumo-subtle font-medium mt-0.5">Agent Parses</div>
                       </div>
-                      <div className="p-2 rounded-lg bg-kumo-control/40">
-                        <div className="text-[10px] uppercase font-bold text-kumo-subtle">Step 3</div>
-                        <div className="text-xs text-kumo-default font-medium mt-0.5">Confirm Details</div>
+                      <div className="p-2.5 rounded-lg bg-kumo-control/40 border border-kumo-line/50">
+                        <div className="text-[10px] uppercase font-semibold text-kumo-subtle tracking-wider">Step 3</div>
+                        <div className="text-xs text-kumo-subtle font-medium mt-0.5">Confirm Details</div>
                       </div>
-                      <div className="p-2 rounded-lg bg-kumo-control/40">
-                        <div className="text-[10px] uppercase font-bold text-kumo-subtle">Step 4</div>
-                        <div className="text-xs text-kumo-default font-medium mt-0.5">Career Suite Active</div>
+                      <div className="p-2.5 rounded-lg bg-kumo-control/40 border border-kumo-line/50">
+                        <div className="text-[10px] uppercase font-semibold text-kumo-subtle tracking-wider">Step 4</div>
+                        <div className="text-xs text-kumo-subtle font-medium mt-0.5">Career Suite Active</div>
                       </div>
                     </div>
                   </div>
@@ -1097,8 +1077,8 @@ function Chat() {
                 <>
                   <div className="rounded-2xl border border-kumo-line bg-kumo-base p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-kumo-brand/10 text-kumo-brand">
-                        <IdentificationCardIcon size={22} weight="bold" />
+                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-kumo-control border border-kumo-line/80 text-kumo-default">
+                        <IdentificationCardIcon size={20} />
                       </div>
                       <div>
                         <h3 className="text-sm font-semibold text-kumo-default">
@@ -1110,7 +1090,7 @@ function Chat() {
                           {resumeProfile?.skills?.length ? ` · ${resumeProfile.skills.length} skills` : ""}
                           {resumeProfile?.education?.length ? ` · ${resumeProfile.education.length} education` : ""}
                           {" · "}
-                          {user.isSignedIn ? "Persisted in Cloudflare D1" : "Persisted in Local Storage"}
+                          {user.isSignedIn ? "D1 Cloud Database" : "Local Browser Storage"}
                         </p>
                       </div>
                     </div>
@@ -1118,7 +1098,7 @@ function Chat() {
                       <Button
                         variant="secondary"
                         size="sm"
-                        icon={<FileTextIcon size={14} />}
+                        icon={<FileTextIcon size={14} className="text-kumo-subtle" />}
                         onClick={() => setIsResumeDrawerOpen(true)}
                       >
                         View / Edit Master Data
@@ -1126,7 +1106,7 @@ function Chat() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        icon={<UploadSimpleIcon size={14} />}
+                        icon={<UploadSimpleIcon size={14} className="text-kumo-subtle" />}
                         disabled={isExtractingResume}
                         onClick={() => resumeFileInputRef.current?.click()}
                       >
@@ -1136,10 +1116,10 @@ function Chat() {
                   </div>
 
                   <Empty
-                    icon={<BriefcaseIcon size={32} className="text-kumo-brand" />}
+                    icon={<BriefcaseIcon size={28} className="text-kumo-subtle" />}
                     title="How can I help with your career today?"
                     contents={
-                      <div className="space-y-3 max-w-xl mx-auto">
+                      <div className="space-y-3.5 max-w-xl mx-auto">
                         <p className="text-xs text-kumo-subtle text-center">
                           Your verified Career Master Data is active. Pick a service or type any career question below:
                         </p>
@@ -1152,7 +1132,7 @@ function Chat() {
                           ].map((prompt) => (
                             <Button
                               key={prompt}
-                              variant="outline"
+                              variant="secondary"
                               size="sm"
                               disabled={isStreaming}
                               onClick={() => {
@@ -1181,12 +1161,11 @@ function Chat() {
 
             return (
               <div key={message.id} className="space-y-2">
-                {showDebug && (
-                  <pre className="text-[11px] text-kumo-subtle bg-kumo-control rounded-lg p-3 overflow-auto max-h-64">
+                {isDev && showDebug && (
+                  <pre className="text-[11px] font-mono text-kumo-subtle bg-kumo-control p-3 rounded-lg overflow-auto max-h-64 border border-kumo-line/60">
                     {JSON.stringify(message, null, 2)}
                   </pre>
                 )}
-
                 {/* Render parts in chronological (array) order */}
                 {message.parts.map((part, i) => {
                   const key = `${message.id}-${i}`;
@@ -1208,13 +1187,13 @@ function Chat() {
                     return (
                       <details
                         key={key}
-                        className="text-xs text-kumo-subtle bg-kumo-control rounded-lg p-3 space-y-1"
+                        className="text-xs text-kumo-subtle bg-kumo-control/60 border border-kumo-line/60 rounded-xl p-3.5 space-y-1.5"
                       >
                         <summary className="cursor-pointer font-medium flex items-center gap-1.5 text-kumo-default">
-                          <BrainIcon size={14} className="text-kumo-brand" />
-                          Reasoning
+                          <BrainIcon size={14} className="text-kumo-subtle" />
+                          <span>Reasoning Process</span>
                         </summary>
-                        <p className="mt-1 whitespace-pre-wrap font-mono text-[11px]">
+                        <p className="mt-1 whitespace-pre-wrap font-mono text-[11px] text-kumo-subtle leading-relaxed">
                           {part.text}
                         </p>
                       </details>
@@ -1253,8 +1232,8 @@ function Chat() {
                   isStreaming &&
                   message.parts.length === 0 && (
                     <div className="flex gap-3 justify-start">
-                      <div className="max-w-[85%] rounded-2xl px-4 py-3 bg-kumo-base border border-kumo-line text-kumo-subtle text-sm flex items-center gap-2">
-                        <div className="animate-spin h-4 w-4 border-2 border-kumo-brand border-t-transparent rounded-full" />
+                      <div className="max-w-[85%] rounded-2xl px-4 py-3 bg-kumo-base border border-kumo-line text-kumo-subtle text-sm flex items-center gap-2.5">
+                        <div className="animate-spin h-3.5 w-3.5 border-2 border-kumo-default border-t-transparent rounded-full" />
                         <span>Thinking...</span>
                       </div>
                     </div>
@@ -1267,13 +1246,13 @@ function Chat() {
       </div>
 
       {/* Input Area */}
-      <div className="border-t border-kumo-line bg-kumo-base">
+      <div className="border-t border-kumo-line bg-kumo-base shrink-0">
         <form
           onSubmit={(e) => {
             e.preventDefault();
             send();
           }}
-          className="max-w-3xl mx-auto px-5 py-4"
+          className="max-w-3xl mx-auto px-5 py-3.5"
         >
           {/* Hidden resume file input for chat extraction */}
           <input
@@ -1329,24 +1308,24 @@ function Chat() {
             </div>
           )}
 
-          <div className="flex items-end gap-3 rounded-xl border border-kumo-line bg-kumo-base p-3 shadow-sm focus-within:ring-2 focus-within:ring-kumo-ring focus-within:border-transparent transition-shadow">
+          <div className="flex items-end gap-2.5 rounded-xl border border-kumo-line bg-kumo-base p-2.5 shadow-xs focus-within:ring-1 focus-within:ring-kumo-ring focus-within:border-transparent transition-all">
             <Button
               type="button"
               variant="ghost"
               shape="square"
               aria-label="Upload Resume"
               title="Upload Resume (.pdf, .docx, .txt) to chat"
-              icon={<FileTextIcon size={18} />}
+              icon={<FileTextIcon size={17} className="text-kumo-subtle" />}
               onClick={() => resumeFileInputRef.current?.click()}
               disabled={!connected || isStreaming || isExtractingResume}
-              className="mb-0.5 text-kumo-brand"
+              className="mb-0.5"
             />
             <Button
               type="button"
               variant="ghost"
               shape="square"
               aria-label="Attach images"
-              icon={<PaperclipIcon size={18} />}
+              icon={<PaperclipIcon size={17} className="text-kumo-subtle" />}
               onClick={() => fileInputRef.current?.click()}
               disabled={!connected || isStreaming}
               className="mb-0.5"
@@ -1376,7 +1355,7 @@ function Chat() {
               }
               disabled={!connected || isStreaming}
               rows={1}
-              className="flex-1 ring-0! focus:ring-0! shadow-none! bg-transparent! outline-none! resize-none max-h-40"
+              className="flex-1 ring-0! focus:ring-0! shadow-none! bg-transparent! outline-none! resize-none max-h-40 text-xs sm:text-sm"
             />
             {isStreaming ? (
               <Button
@@ -1384,7 +1363,7 @@ function Chat() {
                 variant="secondary"
                 shape="square"
                 aria-label="Stop generation"
-                icon={<StopIcon size={18} />}
+                icon={<StopIcon size={16} />}
                 onClick={stop}
                 className="mb-0.5"
               />
@@ -1397,14 +1376,14 @@ function Chat() {
                 disabled={
                   (!input.trim() && attachments.length === 0) || !connected
                 }
-                icon={<PaperPlaneRightIcon size={18} />}
+                icon={<PaperPlaneRightIcon size={16} />}
                 className="mb-0.5"
               />
             )}
           </div>
         </form>
-        <div className="flex justify-center pb-3">
-          <PoweredByCloudflare href="https://developers.cloudflare.com/agents/" />
+        <div className="flex justify-center pb-2.5 text-xs text-kumo-subtle font-medium">
+          <span>© 2026 CV Mama · Career Agent</span>
         </div>
       </div>
 

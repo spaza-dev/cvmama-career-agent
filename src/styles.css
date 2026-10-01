@@ -4,10 +4,82 @@
 @source "../node_modules/streamdown/dist/*.js";
 @source "../node_modules/@streamdown/code/dist/*.js";
 
+/* Brand color theme overrides matching CV Mama logo (#4898AD / #53A0B5 cyan-teal) */
+:root {
+  --color-kumo-brand: #4898AD;
+  --color-kumo-brand-hover: #3F889D;
+  --text-color-kumo-brand: #4898AD;
+}
+
+[data-mode="dark"] {
+  --color-kumo-brand: #60B2C7;
+  --color-kumo-brand-hover: #4898AD;
+  --text-color-kumo-brand: #60B2C7;
+}
+
 html,
 body,
 #root {
   width: 100%;
   height: 100%;
   margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Subtle, smooth custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(150, 150, 150, 0.25);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(150, 150, 150, 0.4);
+}
+
+/* Markdown typography smoothness */
+.kumo-markdown p {
+  margin-bottom: 0.65rem;
+}
+
+.kumo-markdown p:last-child {
+  margin-bottom: 0;
+}
+
+.kumo-markdown ul,
+.kumo-markdown ol {
+  margin-left: 1.25rem;
+  margin-bottom: 0.65rem;
+}
+
+.kumo-markdown li {
+  margin-bottom: 0.25rem;
+}
+
+.kumo-markdown h1,
+.kumo-markdown h2,
+.kumo-markdown h3,
+.kumo-markdown h4 {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 600;
+  margin-top: 1rem;
+  margin-bottom: 0.4rem;
+  color: inherit;
+}
+
+.kumo-markdown h1:first-child,
+.kumo-markdown h2:first-child,
+.kumo-markdown h3:first-child {
+  margin-top: 0;
 }

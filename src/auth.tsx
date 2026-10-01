@@ -8,7 +8,7 @@ import {
   UserButton,
   useUser as useClerkUser
 } from "@clerk/clerk-react";
-import { Button, Badge } from "@cloudflare/kumo";
+import { Button } from "@cloudflare/kumo";
 import {
   CloudCheckIcon,
   HardDriveIcon,
@@ -91,13 +91,10 @@ export function AuthNavControls() {
   if (!user.isClerkEnabled) {
     return (
       <div className="flex items-center gap-2">
-        <Badge
-          variant="secondary"
-          className="gap-1 py-1 px-2 text-xs flex items-center text-kumo-subtle"
-        >
-          <HardDriveIcon size={14} className="text-kumo-brand" />
+        <span className="inline-flex items-center gap-1.5 text-xs text-kumo-subtle font-medium px-2 py-1 rounded-md bg-kumo-control/60 border border-kumo-line/60">
+          <HardDriveIcon size={13} className="text-kumo-subtle" />
           <span>Guest</span>
-        </Badge>
+        </span>
       </div>
     );
   }
@@ -106,30 +103,24 @@ export function AuthNavControls() {
     <div className="flex items-center gap-2">
       <SignedIn>
         <div className="flex items-center gap-2">
-          <Badge
-            variant="secondary"
-            className="gap-1 py-1 px-2 text-xs flex items-center text-kumo-subtle"
-          >
-            <CloudCheckIcon size={14} className="text-kumo-brand" />
+          <span className="inline-flex items-center gap-1.5 text-xs text-kumo-subtle font-medium px-2 py-1 rounded-md bg-kumo-control/60 border border-kumo-line/60">
+            <CloudCheckIcon size={13} className="text-kumo-subtle" />
             <span>Cloud Sync</span>
-          </Badge>
+          </span>
           <UserButton afterSignOutUrl="/" />
         </div>
       </SignedIn>
       <SignedOut>
-        <div className="flex items-center gap-1.5">
-          <Badge
-            variant="secondary"
-            className="gap-1 py-1 px-2 text-xs flex items-center text-kumo-subtle"
-          >
-            <HardDriveIcon size={14} className="text-kumo-brand" />
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 text-xs text-kumo-subtle font-medium px-2 py-1 rounded-md bg-kumo-control/60 border border-kumo-line/60">
+            <HardDriveIcon size={13} className="text-kumo-subtle" />
             <span>Local</span>
-          </Badge>
+          </span>
           <SignInButton mode="modal">
             <Button
               variant="secondary"
               size="sm"
-              icon={<SignInIcon size={14} />}
+              icon={<SignInIcon size={13} className="text-kumo-subtle" />}
             >
               Sign In
             </Button>

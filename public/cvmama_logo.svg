@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 54" fill="none">
+  <!-- Brand logo mark for CV Mama -->
+  <g flex="1" class="cvmama-logo-group">
+    <!-- C letter -->
+    <text x="10" y="38" font-family="'Outfit', sans-serif" font-weight="600" font-size="34" fill="currentColor">C</text>
+    
+    <!-- V letter with graduation cap accent -->
+    <g transform="translate(36, 0)">
+      <!-- Graduation cap icon perched over V -->
+      <path d="M16 11L5 16L16 21L27 16L16 11Z" fill="currentColor" opacity="0.9" />
+      <path d="M11 19.5V23.5C11 25 13.2 26 16 26C18.8 26 21 25 21 23.5V19.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+      <path d="M26 17V23" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      
+      <!-- V text -->
+      <text x="5" y="38" font-family="'Outfit', sans-serif" font-weight="500" font-size="34" fill="currentColor">V</text>
+    </g>
+
+    <!-- mama text in elegant serif -->
+    <text x="70" y="38" font-family="'Georgia', 'Playfair Display', serif" font-weight="500" font-size="32" fill="currentColor" letter-spacing="0.5">mama</text>
+  </g>
+</svg>

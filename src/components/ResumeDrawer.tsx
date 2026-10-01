@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import type { ResumeData, ResumeWork, ResumeEducation, ResumeSkill, ResumeProject } from "../types";
 import { extractResumeText } from "../utils/documentExtractor";
-import { Button, Surface, Badge, Text } from "@cloudflare/kumo";
+import { Button, Surface, Text } from "@cloudflare/kumo";
 import {
   FileTextIcon,
   UploadSimpleIcon,
@@ -261,27 +261,25 @@ export function ResumeDrawer({
         {/* Drawer Header */}
         <div className="flex items-center justify-between border-b border-kumo-line px-6 py-4 bg-kumo-base shrink-0">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-kumo-brand/10 text-kumo-brand">
-              <FileTextIcon size={22} weight="bold" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-kumo-control border border-kumo-line/80 text-kumo-default">
+              <FileTextIcon size={18} />
             </div>
             <div>
-              <h2 className="text-base font-semibold text-kumo-default flex items-center gap-2">
-                <span>Career Master Data Editor</span>
+              <h2 className="text-base font-semibold text-kumo-default tracking-tight">
+                Career Master Data Editor
               </h2>
               <div className="flex items-center gap-2 mt-0.5">
                 <Text size="xs" variant="secondary">
-                  Structured JSON Resume · Master Source of Truth
+                  Structured JSON Resume · Single Source of Truth
                 </Text>
                 {user.isSignedIn ? (
-                  <Badge variant="secondary" className="text-[10px]">
-                    <CloudCheckIcon size={12} className="mr-0.5 inline text-kumo-brand" /> D1
-                    Cloud Persistence
-                  </Badge>
+                  <span className="inline-flex items-center text-[10px] text-kumo-subtle font-medium px-1.5 py-0.5 rounded bg-kumo-control border border-kumo-line">
+                    <CloudCheckIcon size={11} className="mr-1 text-kumo-subtle" /> D1 Database
+                  </span>
                 ) : (
-                  <Badge variant="secondary" className="text-[10px]">
-                    <HardDriveIcon size={12} className="mr-0.5 inline text-kumo-brand" /> LocalStorage
-                    Persistence
-                  </Badge>
+                  <span className="inline-flex items-center text-[10px] text-kumo-subtle font-medium px-1.5 py-0.5 rounded bg-kumo-control border border-kumo-line">
+                    <HardDriveIcon size={11} className="mr-1 text-kumo-subtle" /> LocalStorage
+                  </span>
                 )}
               </div>
             </div>
@@ -291,10 +289,10 @@ export function ResumeDrawer({
             <Button
               variant="secondary"
               size="sm"
-              icon={showJsonView ? <FileTextIcon size={14} /> : <CodeIcon size={14} />}
+              icon={showJsonView ? <FileTextIcon size={14} className="text-kumo-subtle" /> : <CodeIcon size={14} className="text-kumo-subtle" />}
               onClick={() => setShowJsonView(!showJsonView)}
             >
-              {showJsonView ? "Wizard View" : "JSON"}
+              {showJsonView ? "Form View" : "JSON"}
             </Button>
             <button
               type="button"
@@ -302,7 +300,7 @@ export function ResumeDrawer({
               className="rounded-lg p-1.5 text-kumo-subtle hover:bg-kumo-control hover:text-kumo-default transition-colors"
               aria-label="Close drawer"
             >
-              <XIcon size={18} />
+              <XIcon size={16} />
             </button>
           </div>
         </div>
@@ -328,11 +326,11 @@ export function ResumeDrawer({
                           : "text-kumo-subtle hover:text-kumo-default hover:bg-kumo-control"
                     }`}
                   >
-                    <Icon size={14} weight={isActive ? "bold" : "regular"} />
+                    <Icon size={14} weight={isActive ? "bold" : "regular"} className={isActive ? "text-kumo-inverse" : "text-kumo-subtle"} />
                     <span>
                       {idx + 1}. {step.title}
                     </span>
-                    {isPast && <CheckIcon size={12} className="text-kumo-brand" />}
+                    {isPast && <CheckIcon size={12} className="text-kumo-subtle" />}
                   </button>
                 );
               })}
@@ -346,8 +344,8 @@ export function ResumeDrawer({
           {/* UPLOAD STRIP (Client Extraction -> Agent LLM Parsing) */}
           <div className="rounded-xl border border-dashed border-kumo-line bg-kumo-control/20 p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-kumo-brand/10 text-kumo-brand">
-                <UploadSimpleIcon size={18} weight="bold" />
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-kumo-control border border-kumo-line/80 text-kumo-default">
+                <UploadSimpleIcon size={16} className="text-kumo-subtle" />
               </div>
               <div className="text-left">
                 <p className="text-xs font-medium text-kumo-default">
@@ -364,7 +362,7 @@ export function ResumeDrawer({
             <label
               className="shrink-0 cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-kumo-base border border-kumo-line text-kumo-default hover:bg-kumo-control transition-colors"
             >
-              <UploadSimpleIcon size={14} />
+              <UploadSimpleIcon size={13} className="text-kumo-subtle" />
               <span>{formData.basics?.name ? "Replace Resume" : "Select File"}</span>
               <input
                 type="file"
@@ -380,7 +378,7 @@ export function ResumeDrawer({
           {/* Parsing progress alert */}
           {(parsingStep === "extracting" || parsingStep === "agent-parsing") && (
             <div className="rounded-xl border border-kumo-line bg-kumo-control p-4 flex items-center gap-3">
-              <div className="animate-spin h-5 w-5 border-2 border-kumo-brand border-t-transparent rounded-full" />
+              <div className="animate-spin h-4 w-4 border-2 border-kumo-default border-t-transparent rounded-full" />
               <div className="flex-1">
                 <p className="text-sm font-medium text-kumo-default">{statusMessage}</p>
                 <p className="text-xs text-kumo-subtle">
@@ -394,7 +392,7 @@ export function ResumeDrawer({
 
           {parsingStep === "error" && (
             <div className="rounded-xl border border-kumo-line bg-kumo-control p-4 flex items-center gap-3 text-kumo-default">
-              <XCircleIcon size={20} className="shrink-0 text-kumo-brand" />
+              <XCircleIcon size={18} className="shrink-0 text-kumo-subtle" />
               <div className="text-xs">
                 <p className="font-semibold">Processing Failed</p>
                 <p className="text-kumo-subtle">{statusMessage}</p>
@@ -576,7 +574,7 @@ export function ResumeDrawer({
                             <button
                               type="button"
                               onClick={() => removeWorkItem(idx)}
-                              className="text-kumo-subtle hover:text-red-500 p-1 rounded-md"
+                              className="text-kumo-subtle hover:text-kumo-default hover:bg-kumo-control p-1 rounded-md transition-colors"
                               aria-label={`Remove role ${idx + 1}`}
                             >
                               <TrashIcon size={14} />
@@ -715,7 +713,7 @@ export function ResumeDrawer({
                             <button
                               type="button"
                               onClick={() => removeEduItem(idx)}
-                              className="text-kumo-subtle hover:text-red-500 p-1 rounded-md"
+                              className="text-kumo-subtle hover:text-kumo-default hover:bg-kumo-control p-1 rounded-md transition-colors"
                               aria-label={`Remove education ${idx + 1}`}
                             >
                               <TrashIcon size={14} />
@@ -822,7 +820,7 @@ export function ResumeDrawer({
                             <button
                               type="button"
                               onClick={() => removeSkillItem(idx)}
-                              className="text-kumo-subtle hover:text-red-500 p-1 rounded-md"
+                              className="text-kumo-subtle hover:text-kumo-default hover:bg-kumo-control p-1 rounded-md transition-colors"
                               aria-label={`Remove skill category ${idx + 1}`}
                             >
                               <TrashIcon size={14} />
@@ -930,7 +928,7 @@ export function ResumeDrawer({
                             <button
                               type="button"
                               onClick={() => removeProjectItem(idx)}
-                              className="text-kumo-subtle hover:text-red-500 p-1 rounded-md"
+                              className="text-kumo-subtle hover:text-kumo-default hover:bg-kumo-control p-1 rounded-md transition-colors"
                               aria-label={`Remove project ${idx + 1}`}
                             >
                               <TrashIcon size={14} />

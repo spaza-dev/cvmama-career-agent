@@ -1,6 +1,6 @@
 {
-  "name": "CV Mama Career Agent",
-  "description": "AI career assistant and resume agent built with Cloudflare Agents",
+  "name": "cvmama",
+  "description": "cvmama - AI career assistant and resume agent",
   "permissions": [],
   "capabilities": []
 }
