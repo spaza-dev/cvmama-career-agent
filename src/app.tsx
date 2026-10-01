@@ -807,54 +807,28 @@ function Chat() {
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-2 sm:gap-3">
           {/* Left: Brand Logo & Title */}
           <div className="flex items-center gap-2 sm:gap-3">
-            <Logo size="sm" className="sm:hidden" />
+            {/* <Logo size="sm" className="sm:hidden" /> */}
             <Logo size="md" className="hidden sm:inline-flex" />
             <span className="h-4 w-px bg-kumo-line" />
             <span className="text-xs text-kumo-default font-semibold tracking-tight">
-              Career Agent
+              Copilot
             </span>
           </div>
 
           {/* Desktop Right Controls (hidden on mobile < 640px) */}
           <div className="hidden sm:flex items-center gap-2">
-            <AuthNavControls />
+            {/* <AuthNavControls /> */}
 
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-kumo-control/50 border border-kumo-line/60">
               <span
-                className={`inline-block h-2 w-2 rounded-full ${
-                  connected
-                    ? "bg-[#4898AD] dark:bg-[#60B2C7]"
-                    : "bg-zinc-300 dark:bg-zinc-700 animate-pulse"
-                }`}
+                className={`inline-block h-2 w-2 rounded-full ${connected
+                  ? "bg-[#4898AD] dark:bg-[#60B2C7]"
+                  : "bg-zinc-300 dark:bg-zinc-700 animate-pulse"
+                  }`}
               />
-              <span className="text-[11px] text-kumo-subtle font-medium font-mono">
-                {user.isSignedIn
-                  ? "Cloud Session"
-                  : `ID: ${guestSessionId.slice(8, 16)}`}
-              </span>
+
             </div>
 
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={<ShareNetworkIcon size={14} className="text-kumo-subtle" />}
-              onClick={handleCopySyncLink}
-              title="Copy session link to sync across browsers"
-            >
-              Sync Link
-            </Button>
-
-            {!user.isSignedIn && (
-              <Button
-                variant="secondary"
-                size="sm"
-                icon={<PlusCircleIcon size={14} className="text-kumo-subtle" />}
-                onClick={handleCreateNewSession}
-                title="Start a new isolated session"
-              >
-                New Session
-              </Button>
-            )}
 
             {/* Developer debug & MCP tools */}
             {isDev && (
@@ -1143,100 +1117,23 @@ function Chat() {
                     </p>
                   </div>
 
-                  {/* Mode tabs: Segmented Control */}
-                  <div className="flex justify-center">
-                    <div className="inline-flex p-1 rounded-xl bg-kumo-control border border-kumo-line/70 gap-1 w-full sm:w-auto">
-                      <button
-                        type="button"
-                        onClick={() => setOnboardingTab("upload")}
-                        className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg transition-all min-h-[40px] active:scale-[0.98] ${
-                          onboardingTab === "upload"
-                            ? "bg-kumo-base text-kumo-default shadow-xs"
-                            : "text-kumo-subtle hover:text-kumo-default"
-                        }`}
-                      >
-                        <UploadSimpleIcon size={14} className="text-kumo-subtle" />
-                        <span>Upload File</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setOnboardingTab("paste")}
-                        className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg transition-all min-h-[40px] active:scale-[0.98] ${
-                          onboardingTab === "paste"
-                            ? "bg-kumo-base text-kumo-default shadow-xs"
-                            : "text-kumo-subtle hover:text-kumo-default"
-                        }`}
-                      >
-                        <ClipboardTextIcon size={14} className="text-kumo-subtle" />
-                        <span>Paste Text</span>
-                      </button>
-                    </div>
+
+                  <div className="p-5 sm:p-6 rounded-2xl border border-dashed border-kumo-line bg-kumo-control/20 text-center space-y-3.5">
+                    <p className="text-xs text-kumo-subtle max-w-md mx-auto leading-relaxed">
+                      Upload your resume in <strong>PDF</strong>, <strong>DOCX</strong>, or <strong>TXT</strong> format.
+                    </p>
+                    <Button
+                      variant="primary"
+                      icon={<UploadSimpleIcon size={15} />}
+                      disabled={isExtractingResume}
+                      onClick={() => resumeFileInputRef.current?.click()}
+                      className="w-full sm:w-auto min-h-[44px] text-xs sm:text-sm active:scale-[0.98]"
+                    >
+                      {isExtractingResume ? "Reading Document..." : "Choose Resume (.pdf, .docx, .txt)"}
+                    </Button>
                   </div>
 
-                  {/* Tab contents */}
-                  {onboardingTab === "upload" ? (
-                    <div className="p-5 sm:p-6 rounded-2xl border border-dashed border-kumo-line bg-kumo-control/20 text-center space-y-3.5">
-                      <p className="text-xs text-kumo-subtle max-w-md mx-auto leading-relaxed">
-                        Upload your resume in <strong>PDF</strong>, <strong>DOCX</strong>, or <strong>TXT</strong> format. The Agent parses details and prompts you for confirmation before persisting.
-                      </p>
-                      <Button
-                        variant="primary"
-                        icon={<UploadSimpleIcon size={15} />}
-                        disabled={isExtractingResume}
-                        onClick={() => resumeFileInputRef.current?.click()}
-                        className="w-full sm:w-auto min-h-[44px] text-xs sm:text-sm active:scale-[0.98]"
-                      >
-                        {isExtractingResume ? "Reading Document..." : "Choose Resume (.pdf, .docx, .txt)"}
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <textarea
-                        value={pastedResumeText}
-                        onChange={(e) => setPastedResumeText(e.target.value)}
-                        placeholder="Paste your resume content here (e.g. contact details, experience, education, skills, projects)..."
-                        rows={6}
-                        className="w-full p-3.5 text-sm sm:text-xs rounded-xl border border-kumo-line bg-kumo-control/20 text-kumo-default placeholder:text-kumo-inactive focus:outline-none focus:ring-1 focus:ring-kumo-ring resize-y font-mono"
-                      />
-                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
-                        <span className="text-[11px] text-kumo-subtle font-mono">
-                          {pastedResumeText.trim().length} characters
-                        </span>
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          icon={<PaperPlaneRightIcon size={14} />}
-                          disabled={!pastedResumeText.trim() || isStreaming}
-                          onClick={handlePastedResumeSubmit}
-                          className="min-h-[44px] sm:min-h-[36px] active:scale-[0.98]"
-                        >
-                          Parse & Onboard with Agent
-                        </Button>
-                      </div>
-                    </div>
-                  )}
 
-                  {/* Subtle 4-step progress indicator */}
-                  <div className="pt-2 border-t border-kumo-line/60">
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
-                      <div className="p-2 sm:p-2.5 rounded-xl bg-kumo-control/40 border border-kumo-line/50">
-                        <div className="text-[10px] uppercase font-semibold text-kumo-default tracking-wider">Step 1</div>
-                        <div className="text-xs text-kumo-subtle font-medium mt-0.5">Upload or Paste</div>
-                      </div>
-                      <div className="p-2 sm:p-2.5 rounded-xl bg-kumo-control/40 border border-kumo-line/50">
-                        <div className="text-[10px] uppercase font-semibold text-kumo-subtle tracking-wider">Step 2</div>
-                        <div className="text-xs text-kumo-subtle font-medium mt-0.5">Agent Parses</div>
-                      </div>
-                      <div className="p-2 sm:p-2.5 rounded-xl bg-kumo-control/40 border border-kumo-line/50">
-                        <div className="text-[10px] uppercase font-semibold text-kumo-subtle tracking-wider">Step 3</div>
-                        <div className="text-xs text-kumo-subtle font-medium mt-0.5">Confirm Details</div>
-                      </div>
-                      <div className="p-2 sm:p-2.5 rounded-xl bg-kumo-control/40 border border-kumo-line/50">
-                        <div className="text-[10px] uppercase font-semibold text-kumo-subtle tracking-wider">Step 4</div>
-                        <div className="text-xs text-kumo-subtle font-medium mt-0.5">Career Suite Active</div>
-                      </div>
-                    </div>
-                  </div>
                 </div>
               ) : (
                 /* ONBOARDED: SHOW MASTER DATA BAR & "HOW CAN I HELP" CARD */
@@ -1376,11 +1273,10 @@ function Chat() {
                         className={`flex gap-2 sm:gap-3 ${isUser ? "justify-end" : "justify-start"}`}
                       >
                         <div
-                          className={`max-w-[90%] sm:max-w-[82%] rounded-2xl px-3.5 py-2.5 sm:px-4 sm:py-3 text-xs sm:text-sm leading-relaxed ${
-                            isUser
-                              ? "bg-kumo-brand text-kumo-inverse shadow-xs"
-                              : "bg-kumo-base border border-kumo-line text-kumo-default shadow-xs"
-                          }`}
+                          className={`max-w-[90%] sm:max-w-[82%] rounded-2xl px-3.5 py-2.5 sm:px-4 sm:py-3 text-xs sm:text-sm leading-relaxed ${isUser
+                            ? "bg-kumo-brand text-kumo-inverse shadow-xs"
+                            : "bg-kumo-base border border-kumo-line text-kumo-default shadow-xs"
+                            }`}
                         >
                           <Streamdown
                             plugins={{ code }}
