@@ -48,6 +48,7 @@ export default defineConfig({
         ]
       },
       workbox: {
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}"],
         runtimeCaching: [
           {
@@ -86,6 +87,19 @@ export default defineConfig({
       }
     })
   ],
+  build: {
+    chunkSizeWarningLimit: 3000,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("pdfjs-dist")) return "pdfjs";
+          if (id.includes("mammoth")) return "docx";
+          if (id.includes("@phosphor-icons")) return "icons";
+          if (id.includes("@cloudflare/kumo")) return "kumo";
+        }
+      }
+    }
+  },
   server: {
     host: "0.0.0.0",
     port: 3000,
