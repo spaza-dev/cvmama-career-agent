@@ -296,6 +296,26 @@ ${rawText.slice(0, 16000)}
     return { success: true, profile: this.state.profile, isOnboarded: this.state.isOnboarded };
   }
 
+  // Hydrate profile in Agent memory without broadcasting a "saved" notification
+  @callable()
+  async hydrateProfile(profile: ResumeData, userId?: string) {
+    const uid = userId || this.state.userId;
+    const isOnboarded = Boolean(
+      profile && profile.basics?.name &&
+      (profile.work?.length || profile.skills?.length || profile.education?.length || profile.basics?.summary)
+    );
+
+    this.setState({
+      ...this.state,
+      userId: uid,
+      profile,
+      isOnboarded,
+      pendingProfile: null
+    });
+
+    return { success: true, profile: this.state.profile, isOnboarded };
+  }
+
   // Update profile in state and D1
   @callable()
   async setProfile(profile: ResumeData, userId?: string, rawText?: string) {

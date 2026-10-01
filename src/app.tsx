@@ -301,6 +301,14 @@ function Chat() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const resumeFileInputRef = useRef<HTMLInputElement>(null);
+  const hasSyncedSessionRef = useRef<string | null>(null);
+  const lastNotifiedProfileRef = useRef<string>(() => {
+    try {
+      return localStorage.getItem(LOCAL_STORAGE_KEY) || "";
+    } catch {
+      return "";
+    }
+  });
   const toasts = useKumoToastManager();
 
   const [mcpState, setMcpState] = useState<MCPServersState>({
@@ -347,14 +355,19 @@ function Chat() {
             isOnboarded?: boolean;
           };
           if (data?.type === "master-data-saved" && data.profile) {
+            const profileKey = JSON.stringify(data.profile);
             setResumeProfile(data.profile);
             if (!user.isSignedIn) {
-              localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data.profile));
+              localStorage.setItem(LOCAL_STORAGE_KEY, profileKey);
             }
-            toasts.add({
-              title: "Master Data Saved",
-              description: "Your verified Career Master Data is active across all career services."
-            });
+            // Only toast if this is a newly saved profile and hasn't been toasted yet
+            if (lastNotifiedProfileRef.current !== profileKey) {
+              lastNotifiedProfileRef.current = profileKey;
+              toasts.add({
+                title: "Master Data Saved",
+                description: "Your verified Career Master Data is active across all career services."
+              });
+            }
           }
           if (data?.type === "scheduled-task" && data.description) {
             toasts.add({
@@ -376,9 +389,13 @@ function Chat() {
     (agent.state?.isOnboarded && isProfileOnboarded(agent.state?.profile))
   );
 
-  // Sync profile & session with Agent via Agent RPC (no direct API calls)
+  // Sync profile & session with Agent once upon connection / user change
   useEffect(() => {
     if (!connected) return;
+
+    const sessionKey = user.isSignedIn && user.userId ? user.userId : "guest";
+    if (hasSyncedSessionRef.current === sessionKey) return;
+    hasSyncedSessionRef.current = sessionKey;
 
     async function syncUserSession() {
       if (user.isSignedIn && user.userId) {
@@ -386,6 +403,7 @@ function Chat() {
           // 1. Check if user already has a saved profile in D1 via Agent RPC
           const res = await agent.stub.setSessionUser(user.userId);
           if (res?.profile && Object.keys(res.profile).length > 0) {
+            lastNotifiedProfileRef.current = JSON.stringify(res.profile);
             setResumeProfile(res.profile);
             return;
           }
@@ -394,6 +412,7 @@ function Chat() {
           const localSaved = localStorage.getItem(LOCAL_STORAGE_KEY);
           if (localSaved) {
             const localProfile = JSON.parse(localSaved);
+            lastNotifiedProfileRef.current = JSON.stringify(localProfile);
             await agent.stub.setProfile(localProfile, user.userId);
             setResumeProfile(localProfile);
             toasts.add({
@@ -407,12 +426,13 @@ function Chat() {
           console.error("Failed to sync user session with Agent:", err);
         }
       } else {
-        // Guest mode: load profile from localStorage into Agent in-memory state
+        // Guest mode: load profile from localStorage into Agent state silently without toast broadcast
         const localSaved = localStorage.getItem(LOCAL_STORAGE_KEY);
         if (localSaved) {
           try {
             const localProfile = JSON.parse(localSaved);
-            await agent.stub.setProfile(localProfile);
+            lastNotifiedProfileRef.current = JSON.stringify(localProfile);
+            await agent.stub.hydrateProfile(localProfile);
           } catch (err) {
             console.error("Failed to hydrate Agent with local profile:", err);
           }
@@ -421,7 +441,7 @@ function Chat() {
     }
 
     syncUserSession();
-  }, [connected, user.isSignedIn, user.userId, agent, toasts]);
+  }, [connected, user.isSignedIn, user.userId, agent.stub, toasts]);
 
   // Agent-driven resume parsing handler for the visual drawer
   const handleParseWithAgent = useCallback(
@@ -438,6 +458,8 @@ function Chat() {
   // Profile save handler (Agent persists to D1 or LocalStorage depending on auth)
   const handleSaveProfile = useCallback(
     async (profile: ResumeData, rawText?: string) => {
+      const profileKey = JSON.stringify(profile);
+      lastNotifiedProfileRef.current = profileKey;
       setResumeProfile(profile);
 
       if (user.isSignedIn && user.userId) {
@@ -453,7 +475,7 @@ function Chat() {
         });
       } else {
         // Persist to LocalStorage & Agent in-memory state
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(profile));
+        localStorage.setItem(LOCAL_STORAGE_KEY, profileKey);
         await agent.stub.setProfile(profile);
         toasts.add({
           title: "Profile Saved Locally",
