@@ -42,6 +42,7 @@ import {
 } from "@phosphor-icons/react";
 import { useAppUser, AuthNavControls } from "./auth";
 import { ResumeDrawer } from "./components/ResumeDrawer";
+import { extractResumeText } from "./utils/documentExtractor";
 import type { ResumeData } from "./types";
 
 // ── Attachment helpers ────────────────────────────────────────────────────────
@@ -119,13 +120,15 @@ function ToolIO({ label, value }: { label: string; value: unknown }) {
 
 function ToolPartView({
   part,
-  addToolApprovalResponse
+  addToolApprovalResponse,
+  onOpenDrawer
 }: {
   part: UIMessage["parts"][number];
   addToolApprovalResponse: (response: {
     id: string;
     approved: boolean;
   }) => void;
+  onOpenDrawer?: () => void;
 }) {
   if (!isToolUIPart(part)) return null;
 
@@ -177,12 +180,24 @@ function ToolPartView({
   if (part.state === "output-available") {
     return (
       <div className="my-1">
-        <Surface className="p-2 rounded-lg text-xs border border-kumo-line">
-          <div className="flex items-center gap-1.5 text-kumo-subtle mb-1">
-            <CheckCircleIcon size={14} className="text-kumo-brand" />
-            <Text size="xs" bold>
-              {toolName}
-            </Text>
+        <Surface className="p-2.5 rounded-lg text-xs border border-kumo-line space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-kumo-subtle">
+              <CheckCircleIcon size={14} className="text-kumo-brand" />
+              <Text size="xs" bold>
+                {toolName}
+              </Text>
+            </div>
+            {(toolName === "saveProfile" || toolName === "parseResume") && onOpenDrawer && (
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<IdentificationCardIcon size={13} />}
+                onClick={onOpenDrawer}
+              >
+                Open Confirmation Wizard
+              </Button>
+            )}
           </div>
           <ToolIO label="Result" value={part.output} />
         </Surface>
@@ -227,10 +242,12 @@ function Chat() {
     }
   });
   const [isResumeDrawerOpen, setIsResumeDrawerOpen] = useState(false);
+  const [isExtractingResume, setIsExtractingResume] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const resumeFileInputRef = useRef<HTMLInputElement>(null);
   const toasts = useKumoToastManager();
 
   const [mcpState, setMcpState] = useState<MCPServersState>({
@@ -325,7 +342,7 @@ function Chat() {
     syncUserSession();
   }, [connected, user.isSignedIn, user.userId, agent, toasts]);
 
-  // Agent-driven resume parsing handler
+  // Agent-driven resume parsing handler for the visual drawer
   const handleParseWithAgent = useCallback(
     async (rawText: string): Promise<ResumeData> => {
       const res = await agent.stub.parseResume(rawText);
@@ -432,6 +449,48 @@ function Chat() {
 
   const isStreaming = status === "streaming" || status === "submitted";
 
+  // Client-side extraction & chat dispatch
+  const handleResumeFileUpload = useCallback(
+    async (file: File) => {
+      try {
+        setIsExtractingResume(true);
+        toasts.add({
+          title: "Extracting Resume",
+          description: `Reading text from ${file.name} in browser...`
+        });
+        const text = await extractResumeText(file);
+        if (!text || text.length < 30) {
+          toasts.add({
+            title: "Extraction Failed",
+            description:
+              "Could not extract readable text from this file. Please ensure it is not scanned/empty."
+          });
+          return;
+        }
+
+        // Send directly to the chat with clear instructions for the agent to parse, save, and request confirmation
+        sendMessage({
+          role: "user",
+          parts: [
+            {
+              type: "text",
+              text: `I have uploaded my resume: **${file.name}**.\n\nPlease parse my career details into the JSON Resume format, save it to my profile, and provide a structured summary so I can confirm the details.\n\n--- RESUME CONTENT ---\n${text}`
+            }
+          ]
+        });
+      } catch (err) {
+        console.error("Failed to extract resume text:", err);
+        toasts.add({
+          title: "Extraction Error",
+          description: "Could not read the uploaded resume document."
+        });
+      } finally {
+        setIsExtractingResume(false);
+      }
+    },
+    [sendMessage, toasts]
+  );
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -478,20 +537,21 @@ function Chat() {
       if (e.dataTransfer.files.length > 0) {
         const file = e.dataTransfer.files[0];
         const name = file.name.toLowerCase();
-        // If user dropped a resume document, open Resume Modal directly!
+        // If user dropped a resume document, extract & send to chat!
         if (
           name.endsWith(".pdf") ||
           name.endsWith(".docx") ||
+          name.endsWith(".txt") ||
           file.type.includes("pdf") ||
           file.type.includes("wordprocessing")
         ) {
-          setIsResumeDrawerOpen(true);
+          handleResumeFileUpload(file);
           return;
         }
         addFiles(e.dataTransfer.files);
       }
     },
-    [addFiles]
+    [addFiles, handleResumeFileUpload]
   );
 
   const handlePaste = useCallback(
@@ -548,13 +608,13 @@ function Chat() {
           <div className="flex flex-col items-center gap-2 text-kumo-brand">
             <UploadSimpleIcon size={40} />
             <Text variant="heading3" as="span">
-              Drop resume (.pdf, .docx) or images here
+              Drop resume (.pdf, .docx, .txt) or images here
             </Text>
           </div>
         </div>
       )}
 
-      {/* Header */}
+      {/* Header (clean without upload button) */}
       <header className="px-5 py-4 bg-kumo-base border-b border-kumo-line">
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -569,23 +629,6 @@ function Chat() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Resume Profile Onboarding Button */}
-            <Button
-              variant={resumeProfile?.basics?.name ? "secondary" : "primary"}
-              size="sm"
-              icon={<IdentificationCardIcon size={16} />}
-              onClick={() => setIsResumeDrawerOpen(true)}
-              className="gap-1.5"
-            >
-              {resumeProfile?.basics?.name ? (
-                <span className="truncate max-w-[120px] sm:max-w-[170px]">
-                  {resumeProfile.basics.name}
-                </span>
-              ) : (
-                <span>Upload Resume</span>
-              )}
-            </Button>
-
             {/* Clerk Auth / Guest persistence controls */}
             <AuthNavControls />
 
@@ -813,9 +856,10 @@ function Chat() {
                     <Button
                       variant="primary"
                       icon={<UploadSimpleIcon size={16} />}
-                      onClick={() => setIsResumeDrawerOpen(true)}
+                      disabled={isExtractingResume}
+                      onClick={() => resumeFileInputRef.current?.click()}
                     >
-                      Upload Resume (.pdf, .docx)
+                      {isExtractingResume ? "Reading Resume..." : "Upload Resume (.pdf, .docx, .txt)"}
                     </Button>
                   </div>
                 </div>
@@ -846,14 +890,25 @@ function Chat() {
                       </p>
                     </div>
                   </div>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    icon={<FileTextIcon size={14} />}
-                    onClick={() => setIsResumeDrawerOpen(true)}
-                  >
-                    View / Edit Resume
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      icon={<UploadSimpleIcon size={14} />}
+                      disabled={isExtractingResume}
+                      onClick={() => resumeFileInputRef.current?.click()}
+                    >
+                      Upload New Resume
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      icon={<FileTextIcon size={14} />}
+                      onClick={() => setIsResumeDrawerOpen(true)}
+                    >
+                      View / Edit in Drawer
+                    </Button>
+                  </div>
                 </div>
               )}
 
@@ -912,6 +967,7 @@ function Chat() {
                         key={key}
                         part={part}
                         addToolApprovalResponse={addToolApprovalResponse}
+                        onOpenDrawer={() => setIsResumeDrawerOpen(true)}
                       />
                     );
                   }
@@ -988,6 +1044,22 @@ function Chat() {
           }}
           className="max-w-3xl mx-auto px-5 py-4"
         >
+          {/* Hidden resume file input for chat extraction */}
+          <input
+            ref={resumeFileInputRef}
+            type="file"
+            accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
+            aria-label="Upload resume document for chat onboarding"
+            className="hidden"
+            onChange={(e) => {
+              if (e.target.files && e.target.files[0]) {
+                handleResumeFileUpload(e.target.files[0]);
+              }
+              e.target.value = "";
+            }}
+          />
+
+          {/* Hidden image attachments input */}
           <input
             ref={fileInputRef}
             type="file"
@@ -1032,9 +1104,10 @@ function Chat() {
               variant="ghost"
               shape="square"
               aria-label="Upload Resume"
-              title="Upload / View Resume (.pdf, .docx, .txt)"
+              title="Upload Resume (.pdf, .docx, .txt) to chat"
               icon={<FileTextIcon size={18} />}
-              onClick={() => setIsResumeDrawerOpen(true)}
+              onClick={() => resumeFileInputRef.current?.click()}
+              disabled={!connected || isStreaming || isExtractingResume}
               className="mb-0.5 text-kumo-brand"
             />
             <Button
