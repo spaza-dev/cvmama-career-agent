@@ -11,9 +11,9 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "dev": "vite dev",
+    "dev": "vite dev --host 0.0.0.0 --port 3000",
     "build": "vite build",
-    "start": "vite dev",
+    "start": "vite dev --host 0.0.0.0 --port 3000",
     "deploy": "vite build && wrangler deploy",
     "types": "wrangler types env.d.ts",
     "format": "oxfmt --write .",
