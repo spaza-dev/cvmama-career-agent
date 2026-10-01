@@ -140,6 +140,8 @@ export type Application = {
 
 export type CareerState = {
   profile: ResumeData;
+  pendingProfile?: ResumeData | null;
+  isOnboarded?: boolean;
   userId?: string;
   applications: Application[];
   jobs: {
@@ -149,5 +151,17 @@ export type CareerState = {
   }[];
 };
 
+export function isProfileOnboarded(profile?: ResumeData | null): boolean {
+  if (!profile) return false;
+  const name = profile.basics?.name?.trim();
+  if (!name) return false;
+  const hasWork = (profile.work?.length ?? 0) > 0;
+  const hasEducation = (profile.education?.length ?? 0) > 0;
+  const hasSkills = (profile.skills?.length ?? 0) > 0;
+  const hasSummary = Boolean(profile.basics?.summary?.trim());
+  return Boolean(hasWork || hasEducation || hasSkills || hasSummary);
+}
+
 export type ResumeReviewParams = { resumeText: string; targetRole?: string };
 export type JobSearchParams = { query: string; location?: string };
+

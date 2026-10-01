@@ -20,6 +20,8 @@ async function ensureDbTables(db: D1Database) {
       user_id TEXT PRIMARY KEY,
       resume_json TEXT NOT NULL,
       raw_text TEXT,
+      preferences_json TEXT DEFAULT '{}',
+      goals_json TEXT DEFAULT '{}',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
@@ -27,13 +29,26 @@ async function ensureDbTables(db: D1Database) {
 }
 
 export class ChatAgent extends AIChatAgent<AppEnv, CareerState> {
-  initialState: CareerState = { profile: {}, applications: [], jobs: [] };
+  initialState: CareerState = {
+    profile: {},
+    applications: [],
+    jobs: [],
+    isOnboarded: false,
+    pendingProfile: null
+  };
 
   async onChatMessage(onFinish?: Parameters<typeof streamText>[0]["onFinish"]) {
     const workersai = createWorkersAI({ binding: this.env.AI });
+    const isOnboarded = Boolean(
+      this.state.isOnboarded ||
+      (this.state.profile?.basics?.name &&
+        (this.state.profile.work?.length ||
+         this.state.profile.skills?.length ||
+         this.state.profile.education?.length))
+    );
     const result = streamText({
       model: workersai("@cf/openai/gpt-oss-20b"),
-      system: getSystemPrompt(this.state.profile),
+      system: getSystemPrompt(this.state.profile, isOnboarded),
       messages: await convertToModelMessages(this.messages),
       tools: { ...createTools(this), ...this.mcp.getAITools() },
       stopWhen: stepCountIs(8),
@@ -206,8 +221,8 @@ ${rawText.slice(0, 16000)}
       try {
         await ensureDbTables(this.env.DB);
         await this.env.DB.prepare(
-          `INSERT INTO user_profiles (user_id, resume_json, raw_text, updated_at)
-           VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+          `INSERT INTO user_profiles (user_id, resume_json, raw_text, preferences_json, goals_json, updated_at)
+           VALUES (?, ?, ?, '{}', '{}', CURRENT_TIMESTAMP)
            ON CONFLICT(user_id) DO UPDATE SET
              resume_json = excluded.resume_json,
              raw_text = COALESCE(excluded.raw_text, user_profiles.raw_text),
@@ -266,9 +281,10 @@ ${rawText.slice(0, 16000)}
           this.setState({
             ...this.state,
             userId,
-            profile
+            profile,
+            isOnboarded: true
           });
-          return { success: true, profile };
+          return { success: true, profile, isOnboarded: true };
         }
       } catch (err) {
         console.error(
@@ -277,37 +293,45 @@ ${rawText.slice(0, 16000)}
         );
       }
     }
-    return { success: true, profile: this.state.profile };
+    return { success: true, profile: this.state.profile, isOnboarded: this.state.isOnboarded };
   }
 
   // Update profile in state and D1
   @callable()
   async setProfile(profile: ResumeData, userId?: string, rawText?: string) {
     const uid = userId || this.state.userId;
+    const isOnboarded = Boolean(
+      profile && profile.basics?.name &&
+      (profile.work?.length || profile.skills?.length || profile.education?.length || profile.basics?.summary)
+    );
+
     this.setState({
       ...this.state,
       userId: uid,
-      profile
+      profile,
+      isOnboarded,
+      pendingProfile: null
     });
 
     if (uid && this.env.DB) {
-      try {
-        await ensureDbTables(this.env.DB);
-        await this.env.DB.prepare(
-          `INSERT INTO user_profiles (user_id, resume_json, raw_text, updated_at)
-           VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-           ON CONFLICT(user_id) DO UPDATE SET
-             resume_json = excluded.resume_json,
-             raw_text = COALESCE(excluded.raw_text, user_profiles.raw_text),
-             updated_at = CURRENT_TIMESTAMP`
-        )
-          .bind(uid, JSON.stringify(profile), rawText || null)
-          .run();
-      } catch (err) {
-        console.error("Error saving profile in setProfile:", err);
-      }
+      await this.syncProfileToDb(profile, rawText);
     }
-    return { success: true, profile: this.state.profile };
+
+    this.broadcast(
+      JSON.stringify({
+        type: "master-data-saved",
+        profile,
+        isOnboarded
+      })
+    );
+
+    return { success: true, profile: this.state.profile, isOnboarded };
+  }
+
+  // Callable confirmation of master data
+  @callable()
+  async confirmMasterData(profile: ResumeData, rawText?: string) {
+    return await this.setProfile(profile, this.state.userId, rawText);
   }
 
   // Methods the workflows call back into via RPC (must be public)

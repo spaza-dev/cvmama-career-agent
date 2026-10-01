@@ -39,11 +39,12 @@ import {
   IdentificationCardIcon,
   UploadSimpleIcon,
   BriefcaseIcon,
+  ClipboardTextIcon
 } from "@phosphor-icons/react";
 import { useAppUser, AuthNavControls } from "./auth";
 import { ResumeDrawer } from "./components/ResumeDrawer";
 import { extractResumeText } from "./utils/documentExtractor";
-import type { ResumeData } from "./types";
+import { type ResumeData, isProfileOnboarded } from "./types";
 
 // ── Attachment helpers ────────────────────────────────────────────────────────
 
@@ -121,7 +122,8 @@ function ToolIO({ label, value }: { label: string; value: unknown }) {
 function ToolPartView({
   part,
   addToolApprovalResponse,
-  onOpenDrawer
+  onOpenDrawer,
+  onConfirmMasterData
 }: {
   part: UIMessage["parts"][number];
   addToolApprovalResponse: (response: {
@@ -129,6 +131,7 @@ function ToolPartView({
     approved: boolean;
   }) => void;
   onOpenDrawer?: () => void;
+  onConfirmMasterData?: (profile: ResumeData) => void;
 }) {
   if (!isToolUIPart(part)) return null;
 
@@ -178,28 +181,76 @@ function ToolPartView({
   }
 
   if (part.state === "output-available") {
+    const isParse = toolName === "parseResume";
+    const isSave = toolName === "saveProfile";
+    const outputObj =
+      typeof part.output === "object" && part.output !== null
+        ? (part.output as Record<string, unknown>)
+        : null;
+    const resumeData =
+      (outputObj?.resume as ResumeData) ||
+      (outputObj?.profile as ResumeData) ||
+      null;
+
     return (
-      <div className="my-1">
-        <Surface className="p-2.5 rounded-lg text-xs border border-kumo-line space-y-2">
+      <div className="my-2">
+        <Surface className="p-3 rounded-xl text-xs border border-kumo-line bg-kumo-base shadow-xs space-y-2.5">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-kumo-subtle">
-              <CheckCircleIcon size={14} className="text-kumo-brand" />
+            <div className="flex items-center gap-1.5 text-kumo-default">
+              <CheckCircleIcon size={15} className="text-kumo-brand" />
               <Text size="xs" bold>
-                {toolName}
+                {isParse
+                  ? "Resume Parsed · Ready for Confirmation"
+                  : isSave
+                    ? "Career Master Data Persisted"
+                    : toolName}
               </Text>
             </div>
-            {(toolName === "saveProfile" || toolName === "parseResume") && onOpenDrawer && (
+            {isParse && onOpenDrawer && (
               <Button
                 variant="secondary"
                 size="sm"
                 icon={<IdentificationCardIcon size={13} />}
                 onClick={onOpenDrawer}
               >
-                Open Confirmation Wizard
+                Inspect in Drawer
               </Button>
             )}
           </div>
-          <ToolIO label="Result" value={part.output} />
+
+          {isParse && resumeData?.basics?.name ? (
+            <div className="rounded-lg bg-kumo-control/50 p-3 text-xs space-y-2">
+              <div>
+                <div className="font-semibold text-kumo-default">
+                  {resumeData.basics.name}
+                  {resumeData.basics.label ? ` · ${resumeData.basics.label}` : ""}
+                </div>
+                <div className="text-kumo-subtle text-[11px] mt-0.5">
+                  {resumeData.work?.length ? `${resumeData.work.length} roles` : "Roles detected"}
+                  {resumeData.skills?.length ? ` · ${resumeData.skills.length} skills` : ""}
+                  {resumeData.education?.length ? ` · ${resumeData.education.length} education` : ""}
+                </div>
+              </div>
+
+              {onConfirmMasterData && (
+                <div className="pt-2 flex items-center justify-between border-t border-kumo-line">
+                  <span className="text-[11px] text-kumo-subtle">
+                    Reply in chat or confirm here to lock in:
+                  </span>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    icon={<CheckCircleIcon size={14} />}
+                    onClick={() => onConfirmMasterData(resumeData)}
+                  >
+                    Confirm Master Data
+                  </Button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <ToolIO label="Result" value={part.output} />
+          )}
         </Surface>
       </div>
     );
@@ -241,6 +292,8 @@ function Chat() {
       return null;
     }
   });
+  const [onboardingTab, setOnboardingTab] = useState<"upload" | "paste">("upload");
+  const [pastedResumeText, setPastedResumeText] = useState("");
   const [isResumeDrawerOpen, setIsResumeDrawerOpen] = useState(false);
   const [isExtractingResume, setIsExtractingResume] = useState(false);
 
@@ -273,13 +326,36 @@ function Chat() {
     onMcpUpdate: useCallback((state: MCPServersState) => {
       setMcpState(state);
     }, []),
+    onStateUpdate: useCallback(
+      (state: CareerState) => {
+        if (state?.profile && isProfileOnboarded(state.profile)) {
+          setResumeProfile(state.profile);
+          if (!user.isSignedIn) {
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(state.profile));
+          }
+        }
+      },
+      [user.isSignedIn]
+    ),
     onMessage: useCallback(
       (message: MessageEvent) => {
         try {
           const data = JSON.parse(String(message.data)) as {
             type?: string;
             description?: string;
+            profile?: ResumeData;
+            isOnboarded?: boolean;
           };
+          if (data?.type === "master-data-saved" && data.profile) {
+            setResumeProfile(data.profile);
+            if (!user.isSignedIn) {
+              localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data.profile));
+            }
+            toasts.add({
+              title: "Master Data Saved",
+              description: "Your verified Career Master Data is active across all career services."
+            });
+          }
           if (data?.type === "scheduled-task" && data.description) {
             toasts.add({
               title: "Scheduled task completed",
@@ -291,9 +367,14 @@ function Chat() {
           // Not JSON or not our event
         }
       },
-      [toasts]
+      [toasts, user.isSignedIn]
     )
   });
+
+  const isOnboarded = Boolean(
+    isProfileOnboarded(resumeProfile) ||
+    (agent.state?.isOnboarded && isProfileOnboarded(agent.state?.profile))
+  );
 
   // Sync profile & session with Agent via Agent RPC (no direct API calls)
   useEffect(() => {
@@ -468,13 +549,13 @@ function Chat() {
           return;
         }
 
-        // Send directly to the chat with clear instructions for the agent to parse, save, and request confirmation
+        // Send directly to the chat with clear instructions for the agent to parse, present summary, and request confirmation before persisting
         sendMessage({
           role: "user",
           parts: [
             {
               type: "text",
-              text: `I have uploaded my resume: **${file.name}**.\n\nPlease parse my career details into the JSON Resume format, save it to my profile, and provide a structured summary so I can confirm the details.\n\n--- RESUME CONTENT ---\n${text}`
+              text: `I have uploaded my resume: **${file.name}**.\n\nPlease parse my career details into the JSON Resume format, present a structured summary of what you extracted, and ask for my confirmation before persisting my Master Career Data.\n\n--- RESUME CONTENT ---\n${text}`
             }
           ]
         });
@@ -482,13 +563,56 @@ function Chat() {
         console.error("Failed to extract resume text:", err);
         toasts.add({
           title: "Extraction Error",
-          description: "Could not read the uploaded resume document."
+          description: "Could not read the uploaded resume document. Try pasting the text instead."
         });
       } finally {
         setIsExtractingResume(false);
       }
     },
     [sendMessage, toasts]
+  );
+
+  const handlePastedResumeSubmit = useCallback(() => {
+    const text = pastedResumeText.trim();
+    if (!text || text.length < 30) {
+      toasts.add({
+        title: "Content Too Short",
+        description:
+          "Please paste your complete resume text including work experience, education, and skills."
+      });
+      return;
+    }
+
+    sendMessage({
+      role: "user",
+      parts: [
+        {
+          type: "text",
+          text: `I am submitting my resume text for Career Master Data onboarding:\n\n--- RESUME TEXT ---\n${text}\n\nPlease parse my career details into standard JSON Resume format, present a structured summary, and ask for my confirmation before persisting my master data.`
+        }
+      ]
+    });
+    setPastedResumeText("");
+  }, [pastedResumeText, sendMessage, toasts]);
+
+  const handleConfirmMasterData = useCallback(
+    async (profileToConfirm: ResumeData) => {
+      try {
+        await handleSaveProfile(profileToConfirm);
+        sendMessage({
+          role: "user",
+          parts: [
+            {
+              type: "text",
+              text: "Confirmed: The extracted details look accurate. Please persist my Master Career Data and unlock all career services."
+            }
+          ]
+        });
+      } catch (err) {
+        console.error("Failed to confirm master data:", err);
+      }
+    },
+    [handleSaveProfile, sendMessage]
   );
 
   useEffect(() => {
@@ -620,11 +744,11 @@ function Chat() {
           <div className="flex items-center gap-3">
             <h1 className="text-lg font-semibold text-kumo-default flex items-center gap-2">
               <BriefcaseIcon size={20} weight="bold" className="text-kumo-brand" />
-              <span>Career Coach AI</span>
+              <span>CV Mama Career Agent</span>
             </h1>
             <Badge variant="secondary" className="hidden sm:inline-flex">
               <ChatCircleDotsIcon size={12} weight="bold" className="mr-1 text-kumo-brand" />
-              Coach
+              Career Agent
             </Badge>
           </div>
 
@@ -838,109 +962,193 @@ function Chat() {
         <div className="max-w-3xl mx-auto px-5 py-6 space-y-5">
           {messages.length === 0 && (
             <div className="space-y-4 py-4">
-              {!resumeProfile || !resumeProfile.basics?.name ? (
-                <div className="rounded-2xl border border-kumo-brand/30 bg-kumo-brand/5 p-6 text-center space-y-3">
-                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-kumo-brand/10 text-kumo-brand">
-                    <FileTextIcon size={28} weight="bold" />
-                  </div>
-                  <div className="max-w-md mx-auto space-y-1">
-                    <h3 className="text-base font-semibold text-kumo-default">
-                      Onboard Your Resume Profile
-                    </h3>
+              {!isOnboarded ? (
+                /* ONBOARDING CARD ONLY - NO "How can I help" card when not onboarded */
+                <div className="rounded-2xl border border-kumo-line bg-kumo-base p-6 shadow-sm space-y-5">
+                  <div className="text-center max-w-lg mx-auto space-y-2">
+                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-kumo-brand/10 text-kumo-brand">
+                      <IdentificationCardIcon size={26} weight="bold" />
+                    </div>
+                    <h2 className="text-lg font-semibold text-kumo-default">
+                      Career Master Data Onboarding
+                    </h2>
                     <p className="text-xs text-kumo-subtle leading-relaxed">
-                      Upload your resume in <strong>PDF</strong>,{" "}
-                      <strong>DOCX</strong>, or <strong>TXT</strong> format. Extraction runs client-side, followed by Cloudflare Agent LLM structuring with interactive confirmation.
+                      Your Career Master Data is the single source of truth for all intelligent job searches, tailored resumes and cover letters, STAR mock interview prep, and career progression roadmaps. Onboard your profile first to get started.
                     </p>
                   </div>
-                  <div className="pt-1 flex flex-wrap justify-center gap-2">
-                    <Button
-                      variant="primary"
-                      icon={<UploadSimpleIcon size={16} />}
-                      disabled={isExtractingResume}
-                      onClick={() => resumeFileInputRef.current?.click()}
-                    >
-                      {isExtractingResume ? "Reading Resume..." : "Upload Resume (.pdf, .docx, .txt)"}
-                    </Button>
+
+                  {/* Mode tabs: Upload vs Paste */}
+                  <div className="flex justify-center border-b border-kumo-line">
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setOnboardingTab("upload")}
+                        className={`flex items-center gap-2 pb-2.5 px-3 text-xs font-medium border-b-2 transition-colors ${
+                          onboardingTab === "upload"
+                            ? "border-kumo-brand text-kumo-brand"
+                            : "border-transparent text-kumo-subtle hover:text-kumo-default"
+                        }`}
+                      >
+                        <UploadSimpleIcon size={15} />
+                        <span>Upload Resume File</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setOnboardingTab("paste")}
+                        className={`flex items-center gap-2 pb-2.5 px-3 text-xs font-medium border-b-2 transition-colors ${
+                          onboardingTab === "paste"
+                            ? "border-kumo-brand text-kumo-brand"
+                            : "border-transparent text-kumo-subtle hover:text-kumo-default"
+                        }`}
+                      >
+                        <ClipboardTextIcon size={15} />
+                        <span>Paste Resume Text</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Tab contents */}
+                  {onboardingTab === "upload" ? (
+                    <div className="p-6 rounded-xl border border-dashed border-kumo-line bg-kumo-control/30 text-center space-y-3">
+                      <p className="text-xs text-kumo-subtle max-w-md mx-auto">
+                        Upload your resume in <strong>PDF</strong>, <strong>DOCX</strong>, or <strong>TXT</strong> format. The Agent parses details and prompts you for confirmation before persisting.
+                      </p>
+                      <Button
+                        variant="primary"
+                        icon={<UploadSimpleIcon size={16} />}
+                        disabled={isExtractingResume}
+                        onClick={() => resumeFileInputRef.current?.click()}
+                      >
+                        {isExtractingResume ? "Reading Document..." : "Choose Resume (.pdf, .docx, .txt)"}
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <textarea
+                        value={pastedResumeText}
+                        onChange={(e) => setPastedResumeText(e.target.value)}
+                        placeholder="Paste your resume content here (e.g. contact details, experience, education, skills, projects)..."
+                        rows={6}
+                        className="w-full p-3 text-xs rounded-xl border border-kumo-line bg-kumo-control/30 text-kumo-default placeholder:text-kumo-inactive focus:outline-none focus:ring-1 focus:ring-kumo-brand resize-y font-mono"
+                      />
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] text-kumo-subtle">
+                          {pastedResumeText.trim().length} characters
+                        </span>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          icon={<PaperPlaneRightIcon size={14} />}
+                          disabled={!pastedResumeText.trim() || isStreaming}
+                          onClick={handlePastedResumeSubmit}
+                        >
+                          Parse & Onboard with Agent
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Subtle 4-step progress indicator */}
+                  <div className="pt-2 border-t border-kumo-line">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+                      <div className="p-2 rounded-lg bg-kumo-control/40">
+                        <div className="text-[10px] uppercase font-bold text-kumo-brand">Step 1</div>
+                        <div className="text-xs text-kumo-default font-medium mt-0.5">Upload or Paste</div>
+                      </div>
+                      <div className="p-2 rounded-lg bg-kumo-control/40">
+                        <div className="text-[10px] uppercase font-bold text-kumo-subtle">Step 2</div>
+                        <div className="text-xs text-kumo-default font-medium mt-0.5">Agent Parses</div>
+                      </div>
+                      <div className="p-2 rounded-lg bg-kumo-control/40">
+                        <div className="text-[10px] uppercase font-bold text-kumo-subtle">Step 3</div>
+                        <div className="text-xs text-kumo-default font-medium mt-0.5">Confirm Details</div>
+                      </div>
+                      <div className="p-2 rounded-lg bg-kumo-control/40">
+                        <div className="text-[10px] uppercase font-bold text-kumo-subtle">Step 4</div>
+                        <div className="text-xs text-kumo-default font-medium mt-0.5">Career Suite Active</div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               ) : (
-                <div className="rounded-2xl border border-kumo-line bg-kumo-control/40 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-kumo-brand/10 text-kumo-brand">
-                      <IdentificationCardIcon size={22} weight="bold" />
+                /* ONBOARDED: DO NOT SHOW ONBOARDING CARD; SHOW MASTER DATA BAR & "HOW CAN I HELP" CARD */
+                <>
+                  <div className="rounded-2xl border border-kumo-line bg-kumo-base p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-kumo-brand/10 text-kumo-brand">
+                        <IdentificationCardIcon size={22} weight="bold" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-semibold text-kumo-default">
+                          {resumeProfile?.basics?.name || "Career Master Data Profile"}
+                          {resumeProfile?.basics?.label ? ` · ${resumeProfile.basics.label}` : ""}
+                        </h3>
+                        <p className="text-xs text-kumo-subtle mt-0.5">
+                          {resumeProfile?.work?.length ? `${resumeProfile.work.length} roles` : "Profile loaded"}
+                          {resumeProfile?.skills?.length ? ` · ${resumeProfile.skills.length} skills` : ""}
+                          {resumeProfile?.education?.length ? ` · ${resumeProfile.education.length} education` : ""}
+                          {" · "}
+                          {user.isSignedIn ? "Persisted in Cloudflare D1" : "Persisted in Local Storage"}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="text-sm font-semibold text-kumo-default">
-                        {resumeProfile.basics.name}
-                        {resumeProfile.basics.label
-                          ? ` • ${resumeProfile.basics.label}`
-                          : ""}
-                      </h4>
-                      <p className="text-xs text-kumo-subtle">
-                        {resumeProfile.work?.length
-                          ? `${resumeProfile.work.length} roles`
-                          : "Profile loaded"}
-                        {resumeProfile.skills?.length
-                          ? ` • ${resumeProfile.skills.length} skills`
-                          : ""}
-                        {" • "}
-                        {user.isSignedIn
-                          ? "Persisted in Cloudflare D1"
-                          : "Persisted in LocalStorage"}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      icon={<UploadSimpleIcon size={14} />}
-                      disabled={isExtractingResume}
-                      onClick={() => resumeFileInputRef.current?.click()}
-                    >
-                      Upload New Resume
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      icon={<FileTextIcon size={14} />}
-                      onClick={() => setIsResumeDrawerOpen(true)}
-                    >
-                      View / Edit in Drawer
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              <Empty
-                icon={<ChatCircleDotsIcon size={32} />}
-                title="How can I help with your career today?"
-                contents={
-                  <div className="flex flex-wrap justify-center gap-2 max-w-xl mx-auto">
-                    {[
-                      "Review my resume and suggest high-impact improvements",
-                      "Find senior engineering roles matching my skills",
-                      "Help me prepare for behavioral interview questions",
-                      "Track a job application for Cloudflare"
-                    ].map((prompt) => (
+                    <div className="flex items-center gap-2">
                       <Button
-                        key={prompt}
-                        variant="outline"
+                        variant="secondary"
                         size="sm"
-                        disabled={isStreaming}
-                        onClick={() => {
-                          sendMessage({
-                            role: "user",
-                            parts: [{ type: "text", text: prompt }]
-                          });
-                        }}
+                        icon={<FileTextIcon size={14} />}
+                        onClick={() => setIsResumeDrawerOpen(true)}
                       >
-                        {prompt}
+                        View / Edit Master Data
                       </Button>
-                    ))}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        icon={<UploadSimpleIcon size={14} />}
+                        disabled={isExtractingResume}
+                        onClick={() => resumeFileInputRef.current?.click()}
+                      >
+                        Update Resume
+                      </Button>
+                    </div>
                   </div>
-                }
-              />
+
+                  <Empty
+                    icon={<BriefcaseIcon size={32} className="text-kumo-brand" />}
+                    title="How can I help with your career today?"
+                    contents={
+                      <div className="space-y-3 max-w-xl mx-auto">
+                        <p className="text-xs text-kumo-subtle text-center">
+                          Your verified Career Master Data is active. Pick a service or type any career question below:
+                        </p>
+                        <div className="flex flex-wrap justify-center gap-2">
+                          {[
+                            "Find senior roles matching my master profile & skills",
+                            "Tailor my resume & write a cover letter for a job",
+                            "Conduct a mock interview on my experience using STAR",
+                            "Analyze my skill gaps & create a promotion roadmap"
+                          ].map((prompt) => (
+                            <Button
+                              key={prompt}
+                              variant="outline"
+                              size="sm"
+                              disabled={isStreaming}
+                              onClick={() => {
+                                sendMessage({
+                                  role: "user",
+                                  parts: [{ type: "text", text: prompt }]
+                                });
+                              }}
+                            >
+                              {prompt}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                    }
+                  />
+                </>
+              )}
             </div>
           )}
 
@@ -968,6 +1176,7 @@ function Chat() {
                         part={part}
                         addToolApprovalResponse={addToolApprovalResponse}
                         onOpenDrawer={() => setIsResumeDrawerOpen(true)}
+                        onConfirmMasterData={handleConfirmMasterData}
                       />
                     );
                   }
@@ -1139,7 +1348,9 @@ function Chat() {
               placeholder={
                 attachments.length > 0
                   ? "Add a message or send images..."
-                  : "Ask your Career Coach about your resume, roles, or interview prep..."
+                  : !isOnboarded
+                    ? "Upload your resume (.pdf/.docx/.txt) or paste resume text above to onboard..."
+                    : "Ask about matching jobs, tailored applications, STAR mock interviews, or roadmaps..."
               }
               disabled={!connected || isStreaming}
               rows={1}

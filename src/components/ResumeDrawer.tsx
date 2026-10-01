@@ -266,11 +266,11 @@ export function ResumeDrawer({
             </div>
             <div>
               <h2 className="text-base font-semibold text-kumo-default flex items-center gap-2">
-                <span>Profile Confirmation Wizard</span>
+                <span>Career Master Data Editor</span>
               </h2>
               <div className="flex items-center gap-2 mt-0.5">
                 <Text size="xs" variant="secondary">
-                  Structured JSON Resume
+                  Structured JSON Resume · Master Source of Truth
                 </Text>
                 {user.isSignedIn ? (
                   <Badge variant="secondary" className="text-[10px]">
@@ -1049,7 +1049,7 @@ export function ResumeDrawer({
                 disabled={isSaving}
                 icon={isSaving ? undefined : <CheckCircleIcon size={16} />}
               >
-                {isSaving ? "Saving..." : "Confirm & Save Profile"}
+                {isSaving ? "Saving..." : "Confirm & Save Master Data"}
               </Button>
             )}
           </div>
