@@ -759,24 +759,25 @@ function Chat() {
         </div>
       )}
 
-      {/* Header */}
-      <header className="px-5 py-3 bg-kumo-base border-b border-kumo-line shrink-0">
-        <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <Logo size="md" />
+      {/* Top Header App Bar */}
+      <header className="px-3 sm:px-5 py-2.5 sm:py-3 bg-kumo-base border-b border-kumo-line shrink-0 z-20">
+        <div className="max-w-4xl mx-auto flex items-center justify-between gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Logo size="sm" className="sm:hidden" />
+            <Logo size="md" className="hidden sm:inline-flex" />
             <span className="hidden sm:inline-block h-4 w-px bg-kumo-line" />
-            <span className="hidden sm:inline-block text-xs text-kumo-subtle font-medium">
+            <span className="hidden md:inline-block text-xs text-kumo-subtle font-medium">
               Career Agent
             </span>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-2.5">
+          <div className="flex items-center gap-1.5 sm:gap-2.5">
             {/* Auth / Storage state */}
             <AuthNavControls />
 
-            <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-kumo-control/50 border border-kumo-line/60">
+            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-kumo-control/50 border border-kumo-line/60">
               <span
-                className={`inline-block h-1.5 w-1.5 rounded-full ${
+                className={`inline-block h-2 w-2 rounded-full ${
                   connected
                     ? "bg-[#4898AD] dark:bg-[#60B2C7]"
                     : "bg-zinc-300 dark:bg-zinc-700 animate-pulse"
@@ -787,7 +788,7 @@ function Chat() {
               </span>
             </div>
 
-            {/* Developer debug & MCP tools - shown ONLY in dev environment */}
+            {/* Developer debug & MCP tools - shown ONLY on desktop in dev mode */}
             {isDev && (
               <>
                 <div className="hidden lg:flex items-center gap-1.5 pl-1">
@@ -800,7 +801,7 @@ function Chat() {
                   />
                 </div>
 
-                <div className="relative" ref={mcpPanelRef}>
+                <div className="relative hidden sm:block" ref={mcpPanelRef}>
                   <Button
                     variant="secondary"
                     icon={<PlugsConnectedIcon size={15} className="text-kumo-subtle" />}
@@ -953,7 +954,7 @@ function Chat() {
               icon={<TrashIcon size={15} className="text-kumo-subtle" />}
               onClick={clearHistory}
             >
-              Clear
+              <span className="hidden sm:inline">Clear</span>
             </Button>
           </div>
         </div>
@@ -961,14 +962,14 @@ function Chat() {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-3xl mx-auto px-5 py-6 space-y-5">
+        <div className="max-w-3xl mx-auto px-3 sm:px-5 py-4 sm:py-6 space-y-4 sm:space-y-5">
           {messages.length === 0 && (
-            <div className="space-y-4 py-4">
+            <div className="space-y-4 py-2 sm:py-4">
               {!isOnboarded ? (
                 /* ONBOARDING CARD ONLY - NO "How can I help" card when not onboarded */
-                <div className="rounded-2xl border border-kumo-line bg-kumo-base p-6 sm:p-7 shadow-xs space-y-6">
+                <div className="rounded-2xl border border-kumo-line bg-kumo-base p-4 sm:p-7 shadow-xs space-y-5 sm:space-y-6">
                   <div className="text-center max-w-lg mx-auto space-y-2">
-                    <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-kumo-control border border-kumo-line/80 text-kumo-default shadow-2xs">
+                    <div className="mx-auto flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-2xl bg-kumo-control border border-kumo-line/80 text-kumo-default shadow-2xs">
                       <IdentificationCardIcon size={22} />
                     </div>
                     <h2 className="text-base sm:text-lg font-semibold text-kumo-default tracking-tight">
@@ -979,13 +980,13 @@ function Chat() {
                     </p>
                   </div>
 
-                  {/* Mode tabs: Segmented Pill */}
+                  {/* Mode tabs: Segmented Control */}
                   <div className="flex justify-center">
-                    <div className="inline-flex p-1 rounded-xl bg-kumo-control border border-kumo-line/70 gap-1">
+                    <div className="inline-flex p-1 rounded-xl bg-kumo-control border border-kumo-line/70 gap-1 w-full sm:w-auto">
                       <button
                         type="button"
                         onClick={() => setOnboardingTab("upload")}
-                        className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium rounded-lg transition-all ${
+                        className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg transition-all min-h-[40px] active:scale-[0.98] ${
                           onboardingTab === "upload"
                             ? "bg-kumo-base text-kumo-default shadow-xs"
                             : "text-kumo-subtle hover:text-kumo-default"
@@ -997,7 +998,7 @@ function Chat() {
                       <button
                         type="button"
                         onClick={() => setOnboardingTab("paste")}
-                        className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium rounded-lg transition-all ${
+                        className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2 text-xs font-medium rounded-lg transition-all min-h-[40px] active:scale-[0.98] ${
                           onboardingTab === "paste"
                             ? "bg-kumo-base text-kumo-default shadow-xs"
                             : "text-kumo-subtle hover:text-kumo-default"
@@ -1011,7 +1012,7 @@ function Chat() {
 
                   {/* Tab contents */}
                   {onboardingTab === "upload" ? (
-                    <div className="p-6 rounded-xl border border-dashed border-kumo-line bg-kumo-control/20 text-center space-y-3.5">
+                    <div className="p-5 sm:p-6 rounded-2xl border border-dashed border-kumo-line bg-kumo-control/20 text-center space-y-3.5">
                       <p className="text-xs text-kumo-subtle max-w-md mx-auto leading-relaxed">
                         Upload your resume in <strong>PDF</strong>, <strong>DOCX</strong>, or <strong>TXT</strong> format. The Agent parses details and prompts you for confirmation before persisting.
                       </p>
@@ -1020,6 +1021,7 @@ function Chat() {
                         icon={<UploadSimpleIcon size={15} />}
                         disabled={isExtractingResume}
                         onClick={() => resumeFileInputRef.current?.click()}
+                        className="w-full sm:w-auto min-h-[44px] text-xs sm:text-sm active:scale-[0.98]"
                       >
                         {isExtractingResume ? "Reading Document..." : "Choose Resume (.pdf, .docx, .txt)"}
                       </Button>
@@ -1031,9 +1033,9 @@ function Chat() {
                         onChange={(e) => setPastedResumeText(e.target.value)}
                         placeholder="Paste your resume content here (e.g. contact details, experience, education, skills, projects)..."
                         rows={6}
-                        className="w-full p-3.5 text-xs rounded-xl border border-kumo-line bg-kumo-control/20 text-kumo-default placeholder:text-kumo-inactive focus:outline-none focus:ring-1 focus:ring-kumo-ring resize-y font-mono"
+                        className="w-full p-3.5 text-sm sm:text-xs rounded-xl border border-kumo-line bg-kumo-control/20 text-kumo-default placeholder:text-kumo-inactive focus:outline-none focus:ring-1 focus:ring-kumo-ring resize-y font-mono"
                       />
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
                         <span className="text-[11px] text-kumo-subtle font-mono">
                           {pastedResumeText.trim().length} characters
                         </span>
@@ -1043,6 +1045,7 @@ function Chat() {
                           icon={<PaperPlaneRightIcon size={14} />}
                           disabled={!pastedResumeText.trim() || isStreaming}
                           onClick={handlePastedResumeSubmit}
+                          className="min-h-[44px] sm:min-h-[36px] active:scale-[0.98]"
                         >
                           Parse & Onboard with Agent
                         </Button>
@@ -1053,19 +1056,19 @@ function Chat() {
                   {/* Subtle 4-step progress indicator */}
                   <div className="pt-2 border-t border-kumo-line/60">
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
-                      <div className="p-2.5 rounded-lg bg-kumo-control/40 border border-kumo-line/50">
+                      <div className="p-2 sm:p-2.5 rounded-xl bg-kumo-control/40 border border-kumo-line/50">
                         <div className="text-[10px] uppercase font-semibold text-kumo-default tracking-wider">Step 1</div>
                         <div className="text-xs text-kumo-subtle font-medium mt-0.5">Upload or Paste</div>
                       </div>
-                      <div className="p-2.5 rounded-lg bg-kumo-control/40 border border-kumo-line/50">
+                      <div className="p-2 sm:p-2.5 rounded-xl bg-kumo-control/40 border border-kumo-line/50">
                         <div className="text-[10px] uppercase font-semibold text-kumo-subtle tracking-wider">Step 2</div>
                         <div className="text-xs text-kumo-subtle font-medium mt-0.5">Agent Parses</div>
                       </div>
-                      <div className="p-2.5 rounded-lg bg-kumo-control/40 border border-kumo-line/50">
+                      <div className="p-2 sm:p-2.5 rounded-xl bg-kumo-control/40 border border-kumo-line/50">
                         <div className="text-[10px] uppercase font-semibold text-kumo-subtle tracking-wider">Step 3</div>
                         <div className="text-xs text-kumo-subtle font-medium mt-0.5">Confirm Details</div>
                       </div>
-                      <div className="p-2.5 rounded-lg bg-kumo-control/40 border border-kumo-line/50">
+                      <div className="p-2 sm:p-2.5 rounded-xl bg-kumo-control/40 border border-kumo-line/50">
                         <div className="text-[10px] uppercase font-semibold text-kumo-subtle tracking-wider">Step 4</div>
                         <div className="text-xs text-kumo-subtle font-medium mt-0.5">Career Suite Active</div>
                       </div>
@@ -1073,33 +1076,34 @@ function Chat() {
                   </div>
                 </div>
               ) : (
-                /* ONBOARDED: DO NOT SHOW ONBOARDING CARD; SHOW MASTER DATA BAR & "HOW CAN I HELP" CARD */
+                /* ONBOARDED: SHOW MASTER DATA BAR & "HOW CAN I HELP" CARD */
                 <>
-                  <div className="rounded-2xl border border-kumo-line bg-kumo-base p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+                  <div className="rounded-2xl border border-kumo-line bg-kumo-base p-3.5 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-kumo-control border border-kumo-line/80 text-kumo-default">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-kumo-control border border-kumo-line/80 text-kumo-default">
                         <IdentificationCardIcon size={20} />
                       </div>
-                      <div>
-                        <h3 className="text-sm font-semibold text-kumo-default">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-sm font-semibold text-kumo-default truncate">
                           {resumeProfile?.basics?.name || "Career Master Data Profile"}
                           {resumeProfile?.basics?.label ? ` · ${resumeProfile.basics.label}` : ""}
                         </h3>
-                        <p className="text-xs text-kumo-subtle mt-0.5">
+                        <p className="text-xs text-kumo-subtle mt-0.5 truncate">
                           {resumeProfile?.work?.length ? `${resumeProfile.work.length} roles` : "Profile loaded"}
                           {resumeProfile?.skills?.length ? ` · ${resumeProfile.skills.length} skills` : ""}
                           {resumeProfile?.education?.length ? ` · ${resumeProfile.education.length} education` : ""}
                           {" · "}
-                          {user.isSignedIn ? "D1 Cloud Database" : "Local Browser Storage"}
+                          {user.isSignedIn ? "D1 Cloud Database" : "Local Storage"}
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
                       <Button
                         variant="secondary"
                         size="sm"
                         icon={<FileTextIcon size={14} className="text-kumo-subtle" />}
                         onClick={() => setIsResumeDrawerOpen(true)}
+                        className="flex-1 sm:flex-initial min-h-[40px] sm:min-h-[32px] active:scale-[0.98]"
                       >
                         View / Edit Master Data
                       </Button>
@@ -1109,8 +1113,9 @@ function Chat() {
                         icon={<UploadSimpleIcon size={14} className="text-kumo-subtle" />}
                         disabled={isExtractingResume}
                         onClick={() => resumeFileInputRef.current?.click()}
+                        className="min-h-[40px] sm:min-h-[32px] active:scale-[0.98]"
                       >
-                        Update Resume
+                        Update
                       </Button>
                     </div>
                   </div>
@@ -1123,17 +1128,16 @@ function Chat() {
                         <p className="text-xs text-kumo-subtle text-center">
                           Your verified Career Master Data is active. Pick a service or type any career question below:
                         </p>
-                        <div className="flex flex-wrap justify-center gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           {[
                             "Find senior roles matching my master profile & skills",
                             "Tailor my resume & write a cover letter for a job",
                             "Conduct a mock interview on my experience using STAR",
                             "Analyze my skill gaps & create a promotion roadmap"
                           ].map((prompt) => (
-                            <Button
+                            <button
                               key={prompt}
-                              variant="secondary"
-                              size="sm"
+                              type="button"
                               disabled={isStreaming}
                               onClick={() => {
                                 sendMessage({
@@ -1141,9 +1145,11 @@ function Chat() {
                                   parts: [{ type: "text", text: prompt }]
                                 });
                               }}
+                              className="text-left py-3 px-3.5 text-xs font-medium rounded-xl border border-kumo-line bg-kumo-base hover:bg-kumo-control text-kumo-default min-h-[44px] active:scale-[0.98] transition-all flex items-center gap-2 shadow-2xs"
                             >
-                              {prompt}
-                            </Button>
+                              <BriefcaseIcon size={15} className="shrink-0 text-kumo-subtle" />
+                              <span className="line-clamp-2">{prompt}</span>
+                            </button>
                           ))}
                         </div>
                       </div>
@@ -1204,10 +1210,10 @@ function Chat() {
                     return (
                       <div
                         key={key}
-                        className={`flex gap-3 ${isUser ? "justify-end" : "justify-start"}`}
+                        className={`flex gap-2 sm:gap-3 ${isUser ? "justify-end" : "justify-start"}`}
                       >
                         <div
-                          className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                          className={`max-w-[90%] sm:max-w-[82%] rounded-2xl px-3.5 py-2.5 sm:px-4 sm:py-3 text-xs sm:text-sm leading-relaxed ${
                             isUser
                               ? "bg-kumo-brand text-kumo-inverse shadow-xs"
                               : "bg-kumo-base border border-kumo-line text-kumo-default shadow-xs"
@@ -1215,7 +1221,7 @@ function Chat() {
                         >
                           <Streamdown
                             plugins={{ code }}
-                            className="kumo-markdown text-sm break-words overflow-hidden"
+                            className="kumo-markdown text-xs sm:text-sm break-words overflow-hidden"
                           >
                             {part.text}
                           </Streamdown>
@@ -1231,8 +1237,8 @@ function Chat() {
                 {isLastAssistant &&
                   isStreaming &&
                   message.parts.length === 0 && (
-                    <div className="flex gap-3 justify-start">
-                      <div className="max-w-[85%] rounded-2xl px-4 py-3 bg-kumo-base border border-kumo-line text-kumo-subtle text-sm flex items-center gap-2.5">
+                    <div className="flex gap-2 sm:gap-3 justify-start">
+                      <div className="max-w-[90%] sm:max-w-[82%] rounded-2xl px-3.5 py-2.5 sm:px-4 sm:py-3 bg-kumo-base border border-kumo-line text-kumo-subtle text-xs sm:text-sm flex items-center gap-2.5">
                         <div className="animate-spin h-3.5 w-3.5 border-2 border-kumo-default border-t-transparent rounded-full" />
                         <span>Thinking...</span>
                       </div>
@@ -1245,14 +1251,43 @@ function Chat() {
         </div>
       </div>
 
-      {/* Input Area */}
-      <div className="border-t border-kumo-line bg-kumo-base shrink-0">
+      {/* Floating Quick Suggestions Row on Mobile (when onboarded) */}
+      {isOnboarded && messages.length > 0 && (
+        <div className="bg-kumo-base/80 backdrop-blur-sm border-t border-kumo-line/60 px-3 py-2 shrink-0 overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-2 min-w-max">
+            {[
+              "Matching roles",
+              "Tailor resume & cover letter",
+              "STAR Mock interview",
+              "Skill gap & promotion roadmap"
+            ].map((quickPrompt) => (
+              <button
+                key={quickPrompt}
+                type="button"
+                disabled={isStreaming}
+                onClick={() => {
+                  sendMessage({
+                    role: "user",
+                    parts: [{ type: "text", text: quickPrompt }]
+                  });
+                }}
+                className="px-3 py-1.5 rounded-full text-[11px] font-medium bg-kumo-control/80 border border-kumo-line/80 text-kumo-default hover:bg-kumo-control active:scale-95 transition-all whitespace-nowrap"
+              >
+                {quickPrompt}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Fixed Bottom Input Composer */}
+      <div className="border-t border-kumo-line bg-kumo-base shrink-0 pb-safe">
         <form
           onSubmit={(e) => {
             e.preventDefault();
             send();
           }}
-          className="max-w-3xl mx-auto px-5 py-3.5"
+          className="max-w-3xl mx-auto px-3 sm:px-5 py-2.5 sm:py-3.5"
         >
           {/* Hidden resume file input for chat extraction */}
           <input
@@ -1293,42 +1328,42 @@ function Chat() {
                   <img
                     src={att.preview}
                     alt={att.file.name}
-                    className="h-16 w-16 object-cover"
+                    className="h-14 w-14 object-cover"
                   />
                   <button
                     type="button"
                     onClick={() => removeAttachment(att.id)}
-                    className="absolute top-0.5 right-0.5 rounded-full bg-kumo-contrast/80 text-kumo-inverse p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute top-0.5 right-0.5 rounded-full bg-kumo-contrast/80 text-kumo-inverse p-1 active:scale-90 transition-opacity"
                     aria-label={`Remove ${att.file.name}`}
                   >
-                    <XIcon size={10} />
+                    <XIcon size={12} />
                   </button>
                 </div>
               ))}
             </div>
           )}
 
-          <div className="flex items-end gap-2.5 rounded-xl border border-kumo-line bg-kumo-base p-2.5 shadow-xs focus-within:ring-1 focus-within:ring-kumo-ring focus-within:border-transparent transition-all">
+          <div className="flex items-end gap-1.5 sm:gap-2.5 rounded-2xl border border-kumo-line bg-kumo-base p-2 sm:p-2.5 shadow-xs focus-within:ring-1 focus-within:ring-kumo-ring focus-within:border-transparent transition-all">
             <Button
               type="button"
               variant="ghost"
               shape="square"
               aria-label="Upload Resume"
               title="Upload Resume (.pdf, .docx, .txt) to chat"
-              icon={<FileTextIcon size={17} className="text-kumo-subtle" />}
+              icon={<FileTextIcon size={18} className="text-kumo-subtle" />}
               onClick={() => resumeFileInputRef.current?.click()}
               disabled={!connected || isStreaming || isExtractingResume}
-              className="mb-0.5"
+              className="mb-0.5 min-h-[40px] min-w-[40px] sm:min-h-[36px] sm:min-w-[36px] active:scale-95 flex items-center justify-center"
             />
             <Button
               type="button"
               variant="ghost"
               shape="square"
               aria-label="Attach images"
-              icon={<PaperclipIcon size={17} className="text-kumo-subtle" />}
+              icon={<PaperclipIcon size={18} className="text-kumo-subtle" />}
               onClick={() => fileInputRef.current?.click()}
               disabled={!connected || isStreaming}
-              className="mb-0.5"
+              className="mb-0.5 min-h-[40px] min-w-[40px] sm:min-h-[36px] sm:min-w-[36px] active:scale-95 flex items-center justify-center"
             />
             <InputArea
               ref={textareaRef}
@@ -1350,12 +1385,12 @@ function Chat() {
                 attachments.length > 0
                   ? "Add a message or send images..."
                   : !isOnboarded
-                    ? "Upload your resume (.pdf/.docx/.txt) or paste resume text above to onboard..."
-                    : "Ask about matching jobs, tailored applications, STAR mock interviews, or roadmaps..."
+                    ? "Upload resume (.pdf/.docx) or paste text above to onboard..."
+                    : "Ask about jobs, applications, mock interviews, or roadmaps..."
               }
               disabled={!connected || isStreaming}
               rows={1}
-              className="flex-1 ring-0! focus:ring-0! shadow-none! bg-transparent! outline-none! resize-none max-h-40 text-xs sm:text-sm"
+              className="flex-1 ring-0! focus:ring-0! shadow-none! bg-transparent! outline-none! resize-none max-h-36 text-sm sm:text-sm"
             />
             {isStreaming ? (
               <Button
@@ -1365,7 +1400,7 @@ function Chat() {
                 aria-label="Stop generation"
                 icon={<StopIcon size={16} />}
                 onClick={stop}
-                className="mb-0.5"
+                className="mb-0.5 min-h-[40px] min-w-[40px] sm:min-h-[36px] sm:min-w-[36px] active:scale-95 flex items-center justify-center"
               />
             ) : (
               <Button
@@ -1377,12 +1412,12 @@ function Chat() {
                   (!input.trim() && attachments.length === 0) || !connected
                 }
                 icon={<PaperPlaneRightIcon size={16} />}
-                className="mb-0.5"
+                className="mb-0.5 min-h-[40px] min-w-[40px] sm:min-h-[36px] sm:min-w-[36px] active:scale-95 flex items-center justify-center"
               />
             )}
           </div>
         </form>
-        <div className="flex justify-center pb-2.5 text-xs text-kumo-subtle font-medium">
+        <div className="flex justify-center pb-2 text-[11px] text-kumo-subtle font-medium">
           <span>© 2026 CV Mama · Career Agent</span>
         </div>
       </div>

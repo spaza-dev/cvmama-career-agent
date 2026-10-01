@@ -22,17 +22,42 @@ body,
 #root {
   width: 100%;
   height: 100%;
+  height: 100dvh;
   margin: 0;
+  padding: 0;
+  overflow: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
-/* Subtle, smooth custom scrollbars */
+/* Mobile Safe Area Inset Helpers */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.mb-safe {
+  margin-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Hide scrollbars for clean native touch horizontal swipe containers */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Smooth custom scrollbars for main view */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
@@ -40,12 +65,12 @@ body,
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(150, 150, 150, 0.25);
+  background: rgba(150, 150, 150, 0.2);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(150, 150, 150, 0.4);
+  background: rgba(150, 150, 150, 0.35);
 }
 
 /* Markdown typography smoothness */

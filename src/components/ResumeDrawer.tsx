@@ -255,30 +255,38 @@ export function ResumeDrawer({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden bg-black/60 backdrop-blur-xs flex justify-end animate-in fade-in duration-200">
-      <Surface className="relative w-full max-w-3xl lg:max-w-4xl h-full border-l border-kumo-line bg-kumo-base shadow-2xl flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-50 overflow-hidden bg-black/60 backdrop-blur-xs flex flex-col justify-end sm:justify-end sm:flex-row animate-in fade-in duration-200">
+      <Surface className="relative w-full sm:max-w-3xl lg:max-w-4xl h-[92dvh] sm:h-full border-t sm:border-t-0 sm:border-l border-kumo-line bg-kumo-base shadow-2xl flex flex-col overflow-hidden rounded-t-3xl sm:rounded-none animate-in slide-in-from-bottom sm:slide-in-from-right duration-300">
         
+        {/* Mobile Drag Handle Bar */}
+        <button 
+          type="button"
+          className="sm:hidden w-12 h-1.5 bg-kumo-line/80 rounded-full mx-auto my-2.5 shrink-0 cursor-grab active:cursor-grabbing border-0 p-0" 
+          onClick={onClose}
+          aria-label="Drag down to close drawer"
+        />
+
         {/* Drawer Header */}
-        <div className="flex items-center justify-between border-b border-kumo-line px-6 py-4 bg-kumo-base shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-kumo-control border border-kumo-line/80 text-kumo-default">
+        <div className="flex items-center justify-between border-b border-kumo-line px-4 sm:px-6 py-3 sm:py-4 bg-kumo-base shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-kumo-control border border-kumo-line/80 text-kumo-default">
               <FileTextIcon size={18} />
             </div>
             <div>
-              <h2 className="text-base font-semibold text-kumo-default tracking-tight">
+              <h2 className="text-sm sm:text-base font-semibold text-kumo-default tracking-tight">
                 Career Master Data Editor
               </h2>
-              <div className="flex items-center gap-2 mt-0.5">
-                <Text size="xs" variant="secondary">
+              <div className="flex items-center gap-1.5 sm:gap-2 mt-0.5">
+                <Text size="xs" variant="secondary" className="hidden sm:inline">
                   Structured JSON Resume · Single Source of Truth
                 </Text>
                 {user.isSignedIn ? (
                   <span className="inline-flex items-center text-[10px] text-kumo-subtle font-medium px-1.5 py-0.5 rounded bg-kumo-control border border-kumo-line">
-                    <CloudCheckIcon size={11} className="mr-1 text-kumo-subtle" /> D1 Database
+                    <CloudCheckIcon size={11} className="mr-1 text-kumo-subtle" /> D1 Cloud
                   </span>
                 ) : (
                   <span className="inline-flex items-center text-[10px] text-kumo-subtle font-medium px-1.5 py-0.5 rounded bg-kumo-control border border-kumo-line">
-                    <HardDriveIcon size={11} className="mr-1 text-kumo-subtle" /> LocalStorage
+                    <HardDriveIcon size={11} className="mr-1 text-kumo-subtle" /> Local
                   </span>
                 )}
               </div>
@@ -292,22 +300,22 @@ export function ResumeDrawer({
               icon={showJsonView ? <FileTextIcon size={14} className="text-kumo-subtle" /> : <CodeIcon size={14} className="text-kumo-subtle" />}
               onClick={() => setShowJsonView(!showJsonView)}
             >
-              {showJsonView ? "Form View" : "JSON"}
+              {showJsonView ? "Form" : "JSON"}
             </Button>
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg p-1.5 text-kumo-subtle hover:bg-kumo-control hover:text-kumo-default transition-colors"
+              className="rounded-xl p-2 text-kumo-subtle hover:bg-kumo-control hover:text-kumo-default transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center active:scale-95"
               aria-label="Close drawer"
             >
-              <XIcon size={16} />
+              <XIcon size={18} />
             </button>
           </div>
         </div>
 
         {/* Wizard Steps Bar */}
         {!showJsonView && (
-          <div className="border-b border-kumo-line bg-kumo-control/30 px-6 py-2.5 shrink-0 overflow-x-auto">
+          <div className="border-b border-kumo-line bg-kumo-control/30 px-3 sm:px-6 py-2 shrink-0 overflow-x-auto no-scrollbar">
             <div className="flex items-center gap-1.5 min-w-max">
               {WIZARD_STEPS.map((step, idx) => {
                 const Icon = step.icon;
@@ -318,7 +326,7 @@ export function ResumeDrawer({
                     key={step.id}
                     type="button"
                     onClick={() => setCurrentStepIndex(idx)}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all min-h-[38px] active:scale-[0.97] ${
                       isActive
                         ? "bg-kumo-brand text-kumo-inverse shadow-xs"
                         : isPast

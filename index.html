@@ -2,11 +2,20 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
     <meta
       name="description"
       content="AI career assistant and resume agent built with Cloudflare Agents"
     />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0d0e11" media="(prefers-color-scheme: dark)" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="CV Mama" />
     <title>CV Mama Career Agent</title>
     <link rel="icon" href="/favicon.ico" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -20,7 +29,7 @@
       })();
     </script>
   </head>
-  <body>
+  <body class="bg-kumo-elevated antialiased overscroll-none select-none md:select-auto">
     <div id="root"></div>
     <script type="module" src="/src/client.tsx"></script>
   </body>
