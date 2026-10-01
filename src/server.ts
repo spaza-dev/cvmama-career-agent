@@ -217,7 +217,8 @@ ${rawText.slice(0, 16000)}
 
   // Sync profile to D1 helper
   async syncProfileToDb(profile: ResumeData, rawText?: string) {
-    if (this.state.userId && this.env.DB) {
+    const uid = this.state.userId || this.name;
+    if (uid && this.env.DB) {
       try {
         await ensureDbTables(this.env.DB);
         await this.env.DB.prepare(
@@ -228,7 +229,7 @@ ${rawText.slice(0, 16000)}
              raw_text = COALESCE(excluded.raw_text, user_profiles.raw_text),
              updated_at = CURRENT_TIMESTAMP`
         )
-          .bind(this.state.userId, JSON.stringify(profile), rawText || null)
+          .bind(uid, JSON.stringify(profile), rawText || null)
           .run();
       } catch (err) {
         console.error("Failed to sync profile to D1:", err);
@@ -238,8 +239,9 @@ ${rawText.slice(0, 16000)}
 
   // Callable method: Get user profile from D1 via Agent
   @callable()
-  async getProfile(userId: string) {
-    if (!userId) return { success: false, error: "userId required", profile: null };
+  async getProfile(userId?: string) {
+    const uid = userId || this.state.userId || this.name;
+    if (!uid) return { success: false, error: "userId required", profile: null };
 
     if (this.env.DB) {
       try {
@@ -247,7 +249,7 @@ ${rawText.slice(0, 16000)}
         const row = await this.env.DB.prepare(
           "SELECT resume_json, updated_at FROM user_profiles WHERE user_id = ?"
         )
-          .bind(userId)
+          .bind(uid)
           .first<{ resume_json: string; updated_at: string }>();
 
         if (row && row.resume_json) {

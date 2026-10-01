@@ -36,13 +36,20 @@ import {
   IdentificationCardIcon,
   UploadSimpleIcon,
   BriefcaseIcon,
-  ClipboardTextIcon
+  ClipboardTextIcon,
+  ShareNetworkIcon,
+  PlusCircleIcon
 } from "@phosphor-icons/react";
 import { useAppUser, AuthNavControls } from "./auth";
 import { ResumeDrawer } from "./components/ResumeDrawer";
 import { Logo } from "./components/Logo";
 import { extractResumeText } from "./utils/documentExtractor";
 import { type ResumeData, isProfileOnboarded } from "./types";
+import {
+  getOrCreateGuestSessionId,
+  createNewGuestSession,
+  getSessionShareUrl
+} from "./utils/session";
 
 // ── Attachment helpers ────────────────────────────────────────────────────────
 
@@ -322,8 +329,40 @@ function Chat() {
   const [isAddingServer, setIsAddingServer] = useState(false);
   const mcpPanelRef = useRef<HTMLDivElement>(null);
 
+  const [guestSessionId, setGuestSessionId] = useState<string>(() => getOrCreateGuestSessionId());
+  const agentName = user.isSignedIn && user.userId ? `user_${user.userId}` : guestSessionId;
+
+  const handleCopySyncLink = useCallback(() => {
+    const shareUrl = getSessionShareUrl(agentName);
+    navigator.clipboard.writeText(shareUrl).then(
+      () => {
+        toasts.add({
+          title: "Session Sync Link Copied",
+          description: "Paste this link in another browser or tab to connect to this exact agent session and see synchronized data in real time."
+        });
+      },
+      () => {
+        toasts.add({
+          title: "Copy Link",
+          description: `Copy URL: ${shareUrl}`
+        });
+      }
+    );
+  }, [agentName, toasts]);
+
+  const handleCreateNewSession = useCallback(() => {
+    const freshId = createNewGuestSession();
+    setGuestSessionId(freshId);
+    hasSyncedSessionRef.current = null;
+    toasts.add({
+      title: "New Session Created",
+      description: "Switched to a fresh isolated agent instance."
+    });
+  }, [toasts]);
+
   const agent = useAgent<ChatAgent>({
     agent: "ChatAgent",
+    name: agentName,
     onOpen: useCallback(() => setConnected(true), []),
     onClose: useCallback(() => setConnected(false), []),
     onError: useCallback(
@@ -392,7 +431,7 @@ function Chat() {
   useEffect(() => {
     if (!connected) return;
 
-    const sessionKey = user.isSignedIn && user.userId ? user.userId : "guest";
+    const sessionKey = agentName;
     if (hasSyncedSessionRef.current === sessionKey) return;
     hasSyncedSessionRef.current = sessionKey;
 
@@ -440,7 +479,7 @@ function Chat() {
     }
 
     syncUserSession();
-  }, [connected, user.isSignedIn, user.userId, agent.stub, toasts]);
+  }, [connected, agentName, user.isSignedIn, user.userId, agent.stub, toasts]);
 
   // Agent-driven resume parsing handler for the visual drawer
   const handleParseWithAgent = useCallback(
@@ -783,10 +822,34 @@ function Chat() {
                     : "bg-zinc-300 dark:bg-zinc-700 animate-pulse"
                 }`}
               />
-              <span className="text-[11px] text-kumo-subtle font-medium">
-                {connected ? "Agent Online" : "Connecting..."}
+              <span className="text-[11px] text-kumo-subtle font-medium font-mono">
+                {user.isSignedIn
+                  ? "Cloud Session"
+                  : `ID: ${guestSessionId.slice(8, 16)}`}
               </span>
             </div>
+
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={<ShareNetworkIcon size={14} className="text-kumo-subtle" />}
+              onClick={handleCopySyncLink}
+              title="Copy session link to sync across browsers"
+            >
+              <span className="hidden sm:inline">Sync Link</span>
+            </Button>
+
+            {!user.isSignedIn && (
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<PlusCircleIcon size={14} className="text-kumo-subtle" />}
+                onClick={handleCreateNewSession}
+                title="Start a new isolated session"
+              >
+                <span className="hidden md:inline">New Session</span>
+              </Button>
+            )}
 
             {/* Developer debug & MCP tools - shown ONLY on desktop in dev mode */}
             {isDev && (
