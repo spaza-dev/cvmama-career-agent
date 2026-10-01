@@ -21,7 +21,6 @@ import {
   PaperPlaneRightIcon,
   StopIcon,
   TrashIcon,
-  GearIcon,
   ChatCircleDotsIcon,
   CircleIcon,
   MoonIcon,
@@ -29,7 +28,6 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   BrainIcon,
-  CaretDownIcon,
   BugIcon,
   PlugsConnectedIcon,
   PlusIcon,
@@ -37,10 +35,15 @@ import {
   XIcon,
   WrenchIcon,
   PaperclipIcon,
-  ImageIcon
+  FileTextIcon,
+  IdentificationCardIcon,
+  UploadSimpleIcon,
 } from "@phosphor-icons/react";
+import { useAppUser, AuthNavControls } from "./auth";
+import { ResumeModal } from "./components/ResumeModal";
+import type { ResumeData } from "./types";
 
-// ── Attachment helpers ────────────────────────────────────────────────
+// ── Attachment helpers ────────────────────────────────────────────────────────
 
 interface Attachment {
   id: string;
@@ -67,7 +70,7 @@ function fileToDataUri(file: File): Promise<string> {
   });
 }
 
-// ── Small components ──────────────────────────────────────────────────
+// ── Small components ──────────────────────────────────────────────────────────
 
 function ThemeToggle() {
   const [dark, setDark] = useState(
@@ -94,7 +97,7 @@ function ThemeToggle() {
   );
 }
 
-// ── Tool rendering ────────────────────────────────────────────────────
+// ── Tool rendering ────────────────────────────────────────────────────────────
 
 function ToolIO({ label, value }: { label: string; value: unknown }) {
   if (value === undefined || value === null) return null;
@@ -124,42 +127,18 @@ function ToolPartView({
   }) => void;
 }) {
   if (!isToolUIPart(part)) return null;
+
   const toolName = getToolName(part);
 
-  // Completed
-  if (part.state === "output-available") {
+  if (part.state === "approval-requested") {
+    const approvalId = part.approval?.id;
     return (
-      <div className="flex justify-start">
-        <Surface className="max-w-[85%] px-4 py-2.5 rounded-xl ring ring-kumo-line">
-          <div className="flex items-center gap-2 mb-1">
-            <GearIcon size={14} className="text-kumo-inactive" />
-            <Text size="xs" variant="secondary" bold>
-              {toolName}
-            </Text>
-            <Badge variant="secondary">Done</Badge>
-          </div>
-          <ToolIO label="Input" value={part.input} />
-          <ToolIO label="Output" value={part.output} />
-        </Surface>
-      </div>
-    );
-  }
-
-  // Needs approval
-  if ("approval" in part && part.state === "approval-requested") {
-    const approvalId = (part.approval as { id?: string })?.id;
-    return (
-      <div className="flex justify-start">
-        <Surface className="max-w-[85%] px-4 py-3 rounded-xl ring-2 ring-kumo-warning">
-          <div className="flex items-center gap-2 mb-2">
-            <GearIcon size={14} className="text-kumo-warning" />
-            <Text size="sm" bold>
-              Approval needed: {toolName}
-            </Text>
-          </div>
-          <div className="font-mono mb-3">
-            <Text size="xs" variant="secondary">
-              {JSON.stringify(part.input, null, 2)}
+      <div className="my-2 p-3 rounded-lg border border-kumo-line bg-kumo-control">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <BrainIcon size={16} className="text-kumo-brand" />
+            <Text size="xs" bold>
+              Tool Approval: {toolName}
             </Text>
           </div>
           <div className="flex gap-2">
@@ -185,68 +164,38 @@ function ToolPartView({
                 }
               }}
             >
-              Reject
+              Deny
             </Button>
           </div>
-        </Surface>
+        </div>
+        <ToolIO label="Parameters" value={part.input} />
       </div>
     );
   }
 
-  // Rejected / denied
-  if (
-    part.state === "output-denied" ||
-    ("approval" in part &&
-      (part.approval as { approved?: boolean })?.approved === false)
-  ) {
+  if (part.state === "output-available") {
     return (
-      <div className="flex justify-start">
-        <Surface className="max-w-[85%] px-4 py-2.5 rounded-xl ring ring-kumo-line">
-          <div className="flex items-center gap-2">
-            <XCircleIcon size={14} className="text-kumo-danger" />
-            <Text size="xs" variant="secondary" bold>
+      <div className="my-1">
+        <Surface className="p-2 rounded-lg text-xs border border-kumo-line">
+          <div className="flex items-center gap-1.5 text-kumo-subtle mb-1">
+            <CheckCircleIcon size={14} className="text-kumo-success" />
+            <Text size="xs" bold>
               {toolName}
             </Text>
-            <Badge variant="secondary">Rejected</Badge>
           </div>
+          <ToolIO label="Result" value={part.output} />
         </Surface>
       </div>
     );
   }
 
-  // Errored
-  if (part.state === "output-error") {
-    const errorText = part.errorText;
+  if (part.state === "input-available") {
     return (
-      <div className="flex justify-start">
-        <Surface className="max-w-[85%] px-4 py-2.5 rounded-xl ring-2 ring-kumo-danger">
-          <div className="flex items-center gap-2 mb-1">
-            <XCircleIcon size={14} className="text-kumo-danger" />
-            <Text size="xs" variant="secondary" bold>
-              {toolName}
-            </Text>
-            <Badge variant="destructive">Error</Badge>
-          </div>
-          <div className="font-mono">
-            <Text size="xs" variant="secondary">
-              {errorText || "Tool call failed"}
-            </Text>
-          </div>
-        </Surface>
-      </div>
-    );
-  }
-
-  // Executing
-  if (part.state === "input-available" || part.state === "input-streaming") {
-    return (
-      <div className="flex justify-start">
-        <Surface className="max-w-[85%] px-4 py-2.5 rounded-xl ring ring-kumo-line">
-          <div className="flex items-center gap-2">
-            <GearIcon size={14} className="text-kumo-inactive animate-spin" />
-            <Text size="xs" variant="secondary">
-              Running {toolName}...
-            </Text>
+      <div className="my-1">
+        <Surface className="p-2 rounded-lg text-xs border border-kumo-line">
+          <div className="flex items-center gap-1.5 text-kumo-subtle">
+            <BrainIcon size={14} className="animate-spin text-kumo-brand" />
+            <Text size="xs">Running {toolName}...</Text>
           </div>
           <ToolIO label="Input" value={part.input} />
         </Surface>
@@ -257,18 +206,25 @@ function ToolPartView({
   return null;
 }
 
-// ── Main chat ─────────────────────────────────────────────────────────
+// ── Main chat ─────────────────────────────────────────────────────────────────
+
+const LOCAL_STORAGE_KEY = "career_coach_resume_profile";
 
 function Chat() {
+  const user = useAppUser();
   const [connected, setConnected] = useState(false);
   const [input, setInput] = useState("");
   const [showDebug, setShowDebug] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [resumeProfile, setResumeProfile] = useState<ResumeData | null>(null);
+  const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const toasts = useKumoToastManager();
+
   const [mcpState, setMcpState] = useState<MCPServersState>({
     prompts: [],
     resources: [],
@@ -295,8 +251,11 @@ function Chat() {
     onMessage: useCallback(
       (message: MessageEvent) => {
         try {
-          const data = JSON.parse(String(message.data));
-          if (data.type === "scheduled-task") {
+          const data = JSON.parse(String(message.data)) as {
+            type?: string;
+            description?: string;
+          };
+          if (data?.type === "scheduled-task" && data.description) {
             toasts.add({
               title: "Scheduled task completed",
               description: data.description,
@@ -310,6 +269,126 @@ function Chat() {
       [toasts]
     )
   });
+
+  // Load initial profile from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setResumeProfile(parsed);
+      }
+    } catch (e) {
+      console.error("Error reading profile from localStorage", e);
+    }
+  }, []);
+
+  // Sync profile & session with Agent and D1 when connected or user auth state changes
+  useEffect(() => {
+    if (!connected) return;
+
+    async function syncUserSession() {
+      if (user.isSignedIn && user.userId) {
+        try {
+          // 1. Check if user already has a saved profile in D1
+          const res = await fetch(
+            `/api/profile?userId=${encodeURIComponent(user.userId)}`
+          );
+          if (res.ok) {
+            const data = (await res.json()) as { profile?: ResumeData };
+            if (data?.profile) {
+              setResumeProfile(data.profile);
+              await agent.stub.setSessionUser(user.userId);
+              return;
+            }
+          }
+
+          // 2. If no profile in D1 yet, but user had a local profile before signing in, migrate it to D1!
+          const localSaved = localStorage.getItem(LOCAL_STORAGE_KEY);
+          if (localSaved) {
+            const localProfile = JSON.parse(localSaved);
+            await fetch("/api/profile", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                userId: user.userId,
+                profile: localProfile
+              })
+            });
+            await agent.stub.setProfile(localProfile, user.userId);
+            setResumeProfile(localProfile);
+            toasts.add({
+              title: "Profile Synced",
+              description:
+                "Your local resume profile has been uploaded to Cloudflare D1."
+            });
+            return;
+          }
+
+          // 3. Otherwise link the session
+          await agent.stub.setSessionUser(user.userId);
+        } catch (err) {
+          console.error("Failed to sync user session:", err);
+        }
+      } else {
+        // Guest mode: load profile from localStorage into agent
+        const localSaved = localStorage.getItem(LOCAL_STORAGE_KEY);
+        if (localSaved) {
+          try {
+            const localProfile = JSON.parse(localSaved);
+            await agent.stub.setProfile(localProfile);
+          } catch (err) {
+            console.error("Failed to hydrate agent with local profile:", err);
+          }
+        }
+      }
+    }
+
+    syncUserSession();
+  }, [connected, user.isSignedIn, user.userId, agent, toasts]);
+
+  const handleSaveProfile = useCallback(
+    async (profile: ResumeData, rawText?: string) => {
+      setResumeProfile(profile);
+
+      if (user.isSignedIn && user.userId) {
+        // Persist to D1
+        const res = await fetch("/api/profile", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: user.userId,
+            profile,
+            rawText
+          })
+        });
+
+        if (!res.ok) {
+          const err = (await res.json().catch(() => ({}))) as {
+            error?: string;
+          };
+          throw new Error(err.error || "Failed to persist to D1");
+        }
+
+        await agent.stub.setProfile(profile, user.userId);
+        toasts.add({
+          title: "Profile Saved to D1",
+          description:
+            "Your resume profile is saved and will persist across all sessions."
+        });
+      } else {
+        // Persist to LocalStorage
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(profile));
+        await agent.stub.setProfile(profile);
+        toasts.add({
+          title: "Profile Saved Locally",
+          description:
+            "Saved to browser localStorage. Sign in anytime to sync to D1 across devices."
+        });
+      }
+    },
+    [user.isSignedIn, user.userId, agent, toasts]
+  );
 
   // Close MCP panel when clicking outside
   useEffect(() => {
@@ -418,7 +497,22 @@ function Chat() {
       e.preventDefault();
       e.stopPropagation();
       setIsDragging(false);
-      if (e.dataTransfer.files.length > 0) addFiles(e.dataTransfer.files);
+
+      if (e.dataTransfer.files.length > 0) {
+        const file = e.dataTransfer.files[0];
+        const name = file.name.toLowerCase();
+        // If user dropped a resume document, open Resume Modal directly!
+        if (
+          name.endsWith(".pdf") ||
+          name.endsWith(".docx") ||
+          file.type.includes("pdf") ||
+          file.type.includes("wordprocessing")
+        ) {
+          setIsResumeModalOpen(true);
+          return;
+        }
+        addFiles(e.dataTransfer.files);
+      }
     },
     [addFiles]
   );
@@ -475,9 +569,9 @@ function Chat() {
       {isDragging && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-kumo-elevated/80 backdrop-blur-sm border-2 border-dashed border-kumo-brand rounded-xl m-2 pointer-events-none">
           <div className="flex flex-col items-center gap-2 text-kumo-brand">
-            <ImageIcon size={40} />
+            <UploadSimpleIcon size={40} />
             <Text variant="heading3" as="span">
-              Drop images here
+              Drop resume (.pdf, .docx) or images here
             </Text>
           </div>
         </div>
@@ -485,18 +579,40 @@ function Chat() {
 
       {/* Header */}
       <header className="px-5 py-4 bg-kumo-base border-b border-kumo-line">
-        <div className="max-w-3xl mx-auto flex items-center justify-between">
+        <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <h1 className="text-lg font-semibold text-kumo-default">
-              <span className="mr-2">⛅</span>Agent Starter
+            <h1 className="text-lg font-semibold text-kumo-default flex items-center gap-2">
+              <span className="text-xl">💼</span>
+              <span>Career Coach AI</span>
             </h1>
-            <Badge variant="secondary">
+            <Badge variant="secondary" className="hidden sm:inline-flex">
               <ChatCircleDotsIcon size={12} weight="bold" className="mr-1" />
-              AI Chat
+              Coach
             </Badge>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5">
+
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Resume Profile Onboarding Button */}
+            <Button
+              variant={resumeProfile?.basics?.name ? "secondary" : "primary"}
+              size="sm"
+              icon={<IdentificationCardIcon size={16} />}
+              onClick={() => setIsResumeModalOpen(true)}
+              className="gap-1.5"
+            >
+              {resumeProfile?.basics?.name ? (
+                <span className="truncate max-w-[120px] sm:max-w-[170px]">
+                  {resumeProfile.basics.name}
+                </span>
+              ) : (
+                <span>Upload Resume</span>
+              )}
+            </Button>
+
+            {/* Clerk Auth / Guest persistence controls */}
+            <AuthNavControls />
+
+            <div className="hidden md:flex items-center gap-1.5">
               <CircleIcon
                 size={8}
                 weight="fill"
@@ -506,7 +622,8 @@ function Chat() {
                 {connected ? "Connected" : "Disconnected"}
               </Text>
             </div>
-            <div className="flex items-center gap-1.5">
+
+            <div className="hidden lg:flex items-center gap-1.5">
               <BugIcon size={14} className="text-kumo-inactive" />
               <Switch
                 checked={showDebug}
@@ -515,7 +632,9 @@ function Chat() {
                 aria-label="Toggle debug mode"
               />
             </div>
+
             <ThemeToggle />
+
             <div className="relative" ref={mcpPanelRef}>
               <Button
                 variant="secondary"
@@ -698,35 +817,101 @@ function Chat() {
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-3xl mx-auto px-5 py-6 space-y-5">
           {messages.length === 0 && (
-            <Empty
-              icon={<ChatCircleDotsIcon size={32} />}
-              title="Start a conversation"
-              contents={
-                <div className="flex flex-wrap justify-center gap-2">
-                  {[
-                    "What's the weather in Paris?",
-                    "What timezone am I in?",
-                    "Calculate 5000 * 3",
-                    "Remind me in 5 minutes to take a break"
-                  ].map((prompt) => (
+            <div className="space-y-4 py-4">
+              {!resumeProfile || !resumeProfile.basics?.name ? (
+                <div className="rounded-2xl border border-kumo-brand/30 bg-kumo-brand/5 p-6 text-center space-y-3">
+                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-kumo-brand/10 text-kumo-brand">
+                    <FileTextIcon size={28} weight="bold" />
+                  </div>
+                  <div className="max-w-md mx-auto space-y-1">
+                    <h3 className="text-base font-semibold text-kumo-default">
+                      Onboard Your Resume Profile
+                    </h3>
+                    <p className="text-xs text-kumo-subtle leading-relaxed">
+                      Upload your resume in <strong>PDF</strong> or{" "}
+                      <strong>DOCX</strong> format. We extract the content in
+                      your browser and structure it to the standard JSON Resume
+                      schema, persisted across conversations.
+                    </p>
+                  </div>
+                  <div className="pt-1 flex flex-wrap justify-center gap-2">
                     <Button
-                      key={prompt}
-                      variant="outline"
-                      size="sm"
-                      disabled={isStreaming}
-                      onClick={() => {
-                        sendMessage({
-                          role: "user",
-                          parts: [{ type: "text", text: prompt }]
-                        });
-                      }}
+                      variant="primary"
+                      icon={<UploadSimpleIcon size={16} />}
+                      onClick={() => setIsResumeModalOpen(true)}
                     >
-                      {prompt}
+                      Upload Resume (.pdf, .docx)
                     </Button>
-                  ))}
+                  </div>
                 </div>
-              }
-            />
+              ) : (
+                <div className="rounded-2xl border border-kumo-line bg-kumo-control/40 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-kumo-brand/10 text-kumo-brand">
+                      <IdentificationCardIcon size={22} weight="bold" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-semibold text-kumo-default">
+                        {resumeProfile.basics.name}
+                        {resumeProfile.basics.label
+                          ? ` • ${resumeProfile.basics.label}`
+                          : ""}
+                      </h4>
+                      <p className="text-xs text-kumo-subtle">
+                        {resumeProfile.work?.length
+                          ? `${resumeProfile.work.length} roles`
+                          : "Profile loaded"}
+                        {resumeProfile.skills?.length
+                          ? ` • ${resumeProfile.skills.length} skills`
+                          : ""}
+                        {" • "}
+                        {user.isSignedIn
+                          ? "Persisted in Cloudflare D1"
+                          : "Persisted in LocalStorage"}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon={<FileTextIcon size={14} />}
+                    onClick={() => setIsResumeModalOpen(true)}
+                  >
+                    View / Edit Resume
+                  </Button>
+                </div>
+              )}
+
+              <Empty
+                icon={<ChatCircleDotsIcon size={32} />}
+                title="How can I help with your career today?"
+                contents={
+                  <div className="flex flex-wrap justify-center gap-2 max-w-xl mx-auto">
+                    {[
+                      "Review my resume and suggest high-impact improvements",
+                      "Find senior engineering roles matching my skills",
+                      "Help me prepare for behavioral interview questions",
+                      "Track a job application for Cloudflare"
+                    ].map((prompt) => (
+                      <Button
+                        key={prompt}
+                        variant="outline"
+                        size="sm"
+                        disabled={isStreaming}
+                        onClick={() => {
+                          sendMessage({
+                            role: "user",
+                            parts: [{ type: "text", text: prompt }]
+                          });
+                        }}
+                      >
+                        {prompt}
+                      </Button>
+                    ))}
+                  </div>
+                }
+              />
+            </div>
           )}
 
           {messages.map((message: UIMessage, index: number) => {
@@ -758,76 +943,38 @@ function Chat() {
 
                   if (part.type === "reasoning") {
                     if (!part.text.trim()) return null;
-                    const isDone = part.state === "done" || !isStreaming;
                     return (
-                      <div key={key} className="flex justify-start">
-                        <details className="max-w-[85%] w-full" open={!isDone}>
-                          <summary className="flex items-center gap-2 cursor-pointer px-3 py-2 rounded-lg bg-purple-500/10 border border-purple-500/20 text-sm select-none">
-                            <BrainIcon size={14} className="text-purple-400" />
-                            <span className="font-medium text-kumo-default">
-                              Reasoning
-                            </span>
-                            {isDone ? (
-                              <span className="text-xs text-kumo-success">
-                                Complete
-                              </span>
-                            ) : (
-                              <span className="text-xs text-kumo-brand">
-                                Thinking...
-                              </span>
-                            )}
-                            <CaretDownIcon
-                              size={14}
-                              className="ml-auto text-kumo-inactive"
-                            />
-                          </summary>
-                          <pre className="mt-2 px-3 py-2 rounded-lg bg-kumo-control text-xs text-kumo-default whitespace-pre-wrap overflow-auto max-h-64">
-                            {part.text}
-                          </pre>
-                        </details>
-                      </div>
-                    );
-                  }
-
-                  if (
-                    part.type === "file" &&
-                    part.mediaType.startsWith("image/")
-                  ) {
-                    return (
-                      <div
+                      <details
                         key={key}
-                        className={`flex ${isUser ? "justify-end" : "justify-start"}`}
+                        className="text-xs text-kumo-subtle bg-kumo-control rounded-lg p-3 space-y-1"
                       >
-                        <img
-                          src={part.url}
-                          alt="Attachment"
-                          className="max-h-64 rounded-xl border border-kumo-line object-contain"
-                        />
-                      </div>
+                        <summary className="cursor-pointer font-medium flex items-center gap-1.5 text-kumo-default">
+                          <BrainIcon size={14} className="text-kumo-brand" />
+                          Reasoning
+                        </summary>
+                        <p className="mt-1 whitespace-pre-wrap font-mono text-[11px]">
+                          {part.text}
+                        </p>
+                      </details>
                     );
                   }
 
                   if (part.type === "text") {
-                    if (!part.text) return null;
-
-                    if (isUser) {
-                      return (
-                        <div key={key} className="flex justify-end">
-                          <div className="max-w-[85%] px-4 py-2.5 rounded-2xl rounded-br-md bg-kumo-contrast text-kumo-inverse leading-relaxed">
-                            {part.text}
-                          </div>
-                        </div>
-                      );
-                    }
-
                     return (
-                      <div key={key} className="flex justify-start">
-                        <div className="max-w-[85%] rounded-2xl rounded-bl-md bg-kumo-base text-kumo-default leading-relaxed">
+                      <div
+                        key={key}
+                        className={`flex gap-3 ${isUser ? "justify-end" : "justify-start"}`}
+                      >
+                        <div
+                          className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                            isUser
+                              ? "bg-kumo-brand text-kumo-inverse shadow-xs"
+                              : "bg-kumo-base border border-kumo-line text-kumo-default shadow-xs"
+                          }`}
+                        >
                           <Streamdown
-                            className="sd-theme rounded-2xl rounded-bl-md p-3"
                             plugins={{ code }}
-                            controls={false}
-                            isAnimating={isLastAssistant && isStreaming}
+                            className="kumo-markdown text-sm break-words overflow-hidden"
                           >
                             {part.text}
                           </Streamdown>
@@ -838,15 +985,26 @@ function Chat() {
 
                   return null;
                 })}
+
+                {/* Loading indicator when assistant has no parts yet */}
+                {isLastAssistant &&
+                  isStreaming &&
+                  message.parts.length === 0 && (
+                    <div className="flex gap-3 justify-start">
+                      <div className="max-w-[85%] rounded-2xl px-4 py-3 bg-kumo-base border border-kumo-line text-kumo-subtle text-sm flex items-center gap-2">
+                        <div className="animate-spin h-4 w-4 border-2 border-kumo-brand border-t-transparent rounded-full" />
+                        <span>Thinking...</span>
+                      </div>
+                    </div>
+                  )}
               </div>
             );
           })}
-
           <div ref={messagesEndRef} />
         </div>
       </div>
 
-      {/* Input */}
+      {/* Input Area */}
       <div className="border-t border-kumo-line bg-kumo-base">
         <form
           onSubmit={(e) => {
@@ -898,6 +1056,16 @@ function Chat() {
               type="button"
               variant="ghost"
               shape="square"
+              aria-label="Upload Resume"
+              title="Upload / View Resume (.pdf, .docx)"
+              icon={<FileTextIcon size={18} />}
+              onClick={() => setIsResumeModalOpen(true)}
+              className="mb-0.5 text-kumo-brand"
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              shape="square"
               aria-label="Attach images"
               icon={<PaperclipIcon size={18} />}
               onClick={() => fileInputRef.current?.click()}
@@ -923,7 +1091,7 @@ function Chat() {
               placeholder={
                 attachments.length > 0
                   ? "Add a message or send images..."
-                  : "Send a message..."
+                  : "Ask your Career Coach about your resume, roles, or interview prep..."
               }
               disabled={!connected || isStreaming}
               rows={1}
@@ -958,6 +1126,13 @@ function Chat() {
           <PoweredByCloudflare href="https://developers.cloudflare.com/agents/" />
         </div>
       </div>
+
+      <ResumeModal
+        isOpen={isResumeModalOpen}
+        onClose={() => setIsResumeModalOpen(false)}
+        currentProfile={resumeProfile || undefined}
+        onSaveProfile={handleSaveProfile}
+      />
     </div>
   );
 }
