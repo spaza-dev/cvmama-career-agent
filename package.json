@@ -12,6 +12,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
+    "build": "vite build",
     "start": "vite dev",
     "deploy": "vite build && wrangler deploy",
     "types": "wrangler types env.d.ts",

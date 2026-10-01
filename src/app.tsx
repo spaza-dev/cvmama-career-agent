@@ -38,9 +38,10 @@ import {
   FileTextIcon,
   IdentificationCardIcon,
   UploadSimpleIcon,
+  BriefcaseIcon,
 } from "@phosphor-icons/react";
 import { useAppUser, AuthNavControls } from "./auth";
-import { ResumeModal } from "./components/ResumeModal";
+import { ResumeDrawer } from "./components/ResumeDrawer";
 import type { ResumeData } from "./types";
 
 // ── Attachment helpers ────────────────────────────────────────────────────────
@@ -178,7 +179,7 @@ function ToolPartView({
       <div className="my-1">
         <Surface className="p-2 rounded-lg text-xs border border-kumo-line">
           <div className="flex items-center gap-1.5 text-kumo-subtle mb-1">
-            <CheckCircleIcon size={14} className="text-kumo-success" />
+            <CheckCircleIcon size={14} className="text-kumo-brand" />
             <Text size="xs" bold>
               {toolName}
             </Text>
@@ -217,8 +218,15 @@ function Chat() {
   const [showDebug, setShowDebug] = useState(false);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isDragging, setIsDragging] = useState(false);
-  const [resumeProfile, setResumeProfile] = useState<ResumeData | null>(null);
-  const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
+  const [resumeProfile, setResumeProfile] = useState<ResumeData | null>(() => {
+    try {
+      const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [isResumeDrawerOpen, setIsResumeDrawerOpen] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -270,51 +278,24 @@ function Chat() {
     )
   });
 
-  // Load initial profile from localStorage
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        setResumeProfile(parsed);
-      }
-    } catch (e) {
-      console.error("Error reading profile from localStorage", e);
-    }
-  }, []);
-
-  // Sync profile & session with Agent and D1 when connected or user auth state changes
+  // Sync profile & session with Agent via Agent RPC (no direct API calls)
   useEffect(() => {
     if (!connected) return;
 
     async function syncUserSession() {
       if (user.isSignedIn && user.userId) {
         try {
-          // 1. Check if user already has a saved profile in D1
-          const res = await fetch(
-            `/api/profile?userId=${encodeURIComponent(user.userId)}`
-          );
-          if (res.ok) {
-            const data = (await res.json()) as { profile?: ResumeData };
-            if (data?.profile) {
-              setResumeProfile(data.profile);
-              await agent.stub.setSessionUser(user.userId);
-              return;
-            }
+          // 1. Check if user already has a saved profile in D1 via Agent RPC
+          const res = await agent.stub.setSessionUser(user.userId);
+          if (res?.profile && Object.keys(res.profile).length > 0) {
+            setResumeProfile(res.profile);
+            return;
           }
 
-          // 2. If no profile in D1 yet, but user had a local profile before signing in, migrate it to D1!
+          // 2. If no profile in D1 yet, but user had a local profile before signing in, migrate via Agent!
           const localSaved = localStorage.getItem(LOCAL_STORAGE_KEY);
           if (localSaved) {
             const localProfile = JSON.parse(localSaved);
-            await fetch("/api/profile", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                userId: user.userId,
-                profile: localProfile
-              })
-            });
             await agent.stub.setProfile(localProfile, user.userId);
             setResumeProfile(localProfile);
             toasts.add({
@@ -324,21 +305,18 @@ function Chat() {
             });
             return;
           }
-
-          // 3. Otherwise link the session
-          await agent.stub.setSessionUser(user.userId);
         } catch (err) {
-          console.error("Failed to sync user session:", err);
+          console.error("Failed to sync user session with Agent:", err);
         }
       } else {
-        // Guest mode: load profile from localStorage into agent
+        // Guest mode: load profile from localStorage into Agent in-memory state
         const localSaved = localStorage.getItem(LOCAL_STORAGE_KEY);
         if (localSaved) {
           try {
             const localProfile = JSON.parse(localSaved);
             await agent.stub.setProfile(localProfile);
           } catch (err) {
-            console.error("Failed to hydrate agent with local profile:", err);
+            console.error("Failed to hydrate Agent with local profile:", err);
           }
         }
       }
@@ -347,37 +325,36 @@ function Chat() {
     syncUserSession();
   }, [connected, user.isSignedIn, user.userId, agent, toasts]);
 
+  // Agent-driven resume parsing handler
+  const handleParseWithAgent = useCallback(
+    async (rawText: string): Promise<ResumeData> => {
+      const res = await agent.stub.parseResume(rawText);
+      if (!res || !res.success || !res.resume) {
+        throw new Error(res?.error || "Agent LLM parsing failed.");
+      }
+      return res.resume;
+    },
+    [agent]
+  );
+
+  // Profile save handler (Agent persists to D1 or LocalStorage depending on auth)
   const handleSaveProfile = useCallback(
     async (profile: ResumeData, rawText?: string) => {
       setResumeProfile(profile);
 
       if (user.isSignedIn && user.userId) {
-        // Persist to D1
-        const res = await fetch("/api/profile", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            userId: user.userId,
-            profile,
-            rawText
-          })
-        });
-
-        if (!res.ok) {
-          const err = (await res.json().catch(() => ({}))) as {
-            error?: string;
-          };
-          throw new Error(err.error || "Failed to persist to D1");
+        // Persist to D1 via Agent RPC
+        const res = await agent.stub.setProfile(profile, user.userId, rawText);
+        if (!res?.success) {
+          throw new Error("Agent failed to save profile to D1");
         }
-
-        await agent.stub.setProfile(profile, user.userId);
         toasts.add({
           title: "Profile Saved to D1",
           description:
             "Your resume profile is saved and will persist across all sessions."
         });
       } else {
-        // Persist to LocalStorage
+        // Persist to LocalStorage & Agent in-memory state
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(profile));
         await agent.stub.setProfile(profile);
         toasts.add({
@@ -508,7 +485,7 @@ function Chat() {
           file.type.includes("pdf") ||
           file.type.includes("wordprocessing")
         ) {
-          setIsResumeModalOpen(true);
+          setIsResumeDrawerOpen(true);
           return;
         }
         addFiles(e.dataTransfer.files);
@@ -582,11 +559,11 @@ function Chat() {
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <h1 className="text-lg font-semibold text-kumo-default flex items-center gap-2">
-              <span className="text-xl">💼</span>
+              <BriefcaseIcon size={20} weight="bold" className="text-kumo-brand" />
               <span>Career Coach AI</span>
             </h1>
             <Badge variant="secondary" className="hidden sm:inline-flex">
-              <ChatCircleDotsIcon size={12} weight="bold" className="mr-1" />
+              <ChatCircleDotsIcon size={12} weight="bold" className="mr-1 text-kumo-brand" />
               Coach
             </Badge>
           </div>
@@ -597,7 +574,7 @@ function Chat() {
               variant={resumeProfile?.basics?.name ? "secondary" : "primary"}
               size="sm"
               icon={<IdentificationCardIcon size={16} />}
-              onClick={() => setIsResumeModalOpen(true)}
+              onClick={() => setIsResumeDrawerOpen(true)}
               className="gap-1.5"
             >
               {resumeProfile?.basics?.name ? (
@@ -828,17 +805,15 @@ function Chat() {
                       Onboard Your Resume Profile
                     </h3>
                     <p className="text-xs text-kumo-subtle leading-relaxed">
-                      Upload your resume in <strong>PDF</strong> or{" "}
-                      <strong>DOCX</strong> format. We extract the content in
-                      your browser and structure it to the standard JSON Resume
-                      schema, persisted across conversations.
+                      Upload your resume in <strong>PDF</strong>,{" "}
+                      <strong>DOCX</strong>, or <strong>TXT</strong> format. Extraction runs client-side, followed by Cloudflare Agent LLM structuring with interactive confirmation.
                     </p>
                   </div>
                   <div className="pt-1 flex flex-wrap justify-center gap-2">
                     <Button
                       variant="primary"
                       icon={<UploadSimpleIcon size={16} />}
-                      onClick={() => setIsResumeModalOpen(true)}
+                      onClick={() => setIsResumeDrawerOpen(true)}
                     >
                       Upload Resume (.pdf, .docx)
                     </Button>
@@ -875,7 +850,7 @@ function Chat() {
                     variant="secondary"
                     size="sm"
                     icon={<FileTextIcon size={14} />}
-                    onClick={() => setIsResumeModalOpen(true)}
+                    onClick={() => setIsResumeDrawerOpen(true)}
                   >
                     View / Edit Resume
                   </Button>
@@ -1057,9 +1032,9 @@ function Chat() {
               variant="ghost"
               shape="square"
               aria-label="Upload Resume"
-              title="Upload / View Resume (.pdf, .docx)"
+              title="Upload / View Resume (.pdf, .docx, .txt)"
               icon={<FileTextIcon size={18} />}
-              onClick={() => setIsResumeModalOpen(true)}
+              onClick={() => setIsResumeDrawerOpen(true)}
               className="mb-0.5 text-kumo-brand"
             />
             <Button
@@ -1127,11 +1102,12 @@ function Chat() {
         </div>
       </div>
 
-      <ResumeModal
-        isOpen={isResumeModalOpen}
-        onClose={() => setIsResumeModalOpen(false)}
+      <ResumeDrawer
+        isOpen={isResumeDrawerOpen}
+        onClose={() => setIsResumeDrawerOpen(false)}
         currentProfile={resumeProfile || undefined}
         onSaveProfile={handleSaveProfile}
+        onParseWithAgent={handleParseWithAgent}
       />
     </div>
   );

@@ -95,8 +95,8 @@ export function AuthNavControls() {
           variant="secondary"
           className="gap-1 py-1 px-2 text-xs flex items-center text-kumo-subtle"
         >
-          <HardDriveIcon size={14} className="text-amber-500" />
-          <span>Guest (LocalStorage)</span>
+          <HardDriveIcon size={14} className="text-kumo-brand" />
+          <span>Guest</span>
         </Badge>
       </div>
     );
@@ -108,10 +108,10 @@ export function AuthNavControls() {
         <div className="flex items-center gap-2">
           <Badge
             variant="secondary"
-            className="gap-1 py-1 px-2 text-xs flex items-center text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800"
+            className="gap-1 py-1 px-2 text-xs flex items-center text-kumo-subtle"
           >
-            <CloudCheckIcon size={14} className="text-emerald-500" />
-            <span>Cloud Sync (D1)</span>
+            <CloudCheckIcon size={14} className="text-kumo-brand" />
+            <span>Cloud Sync</span>
           </Badge>
           <UserButton afterSignOutUrl="/" />
         </div>
@@ -122,7 +122,7 @@ export function AuthNavControls() {
             variant="secondary"
             className="gap-1 py-1 px-2 text-xs flex items-center text-kumo-subtle"
           >
-            <HardDriveIcon size={14} className="text-amber-500" />
+            <HardDriveIcon size={14} className="text-kumo-brand" />
             <span>Local</span>
           </Badge>
           <SignInButton mode="modal">

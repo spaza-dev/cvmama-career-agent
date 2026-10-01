@@ -43,151 +43,13 @@ export class ChatAgent extends AIChatAgent<AppEnv, CareerState> {
     return result.toUIMessageStreamResponse();
   }
 
-  // Called from the UI's MCP panel
-  @callable() async addServer(name: string, url: string) {
-    await this.addMcpServer(name, url);
-  }
-  @callable() async removeServer(id: string) {
-    await this.removeMcpServer(id);
-  }
-
-  // Sync profile to D1 helper
-  async syncProfileToDb(profile: ResumeData) {
-    if (this.state.userId && this.env.DB) {
-      try {
-        await ensureDbTables(this.env.DB);
-        await this.env.DB.prepare(
-          `INSERT INTO user_profiles (user_id, resume_json, updated_at)
-           VALUES (?, ?, CURRENT_TIMESTAMP)
-           ON CONFLICT(user_id) DO UPDATE SET
-             resume_json = excluded.resume_json,
-             updated_at = CURRENT_TIMESTAMP`
-        )
-          .bind(this.state.userId, JSON.stringify(profile))
-          .run();
-      } catch (err) {
-        console.error("Failed to sync profile to D1:", err);
-      }
-    }
-  }
-
-  // Hydrate user session from D1
-  @callable()
-  async setSessionUser(userId: string) {
-    if (!userId) return { success: false };
-    this.setState({ ...this.state, userId });
-
-    if (this.env.DB) {
-      try {
-        await ensureDbTables(this.env.DB);
-        const row = await this.env.DB.prepare(
-          "SELECT resume_json FROM user_profiles WHERE user_id = ?"
-        )
-          .bind(userId)
-          .first<{ resume_json: string }>();
-
-        if (row && row.resume_json) {
-          const profile = JSON.parse(row.resume_json) as ResumeData;
-          this.setState({
-            ...this.state,
-            userId,
-            profile
-          });
-          return { success: true, profile };
-        }
-      } catch (err) {
-        console.error(
-          "Error hydrating profile from D1 in setSessionUser:",
-          err
-        );
-      }
-    }
-    return { success: true, profile: this.state.profile };
-  }
-
-  // Update profile in state and D1
-  @callable()
-  async setProfile(profile: ResumeData, userId?: string) {
-    const uid = userId || this.state.userId;
-    this.setState({
-      ...this.state,
-      userId: uid,
-      profile
-    });
-
-    if (uid && this.env.DB) {
-      try {
-        await ensureDbTables(this.env.DB);
-        await this.env.DB.prepare(
-          `INSERT INTO user_profiles (user_id, resume_json, updated_at)
-           VALUES (?, ?, CURRENT_TIMESTAMP)
-           ON CONFLICT(user_id) DO UPDATE SET
-             resume_json = excluded.resume_json,
-             updated_at = CURRENT_TIMESTAMP`
-        )
-          .bind(uid, JSON.stringify(profile))
-          .run();
-      } catch (err) {
-        console.error("Error saving profile in setProfile:", err);
-      }
-    }
-    return { success: true, profile: this.state.profile };
-  }
-
-  // Methods the workflows call back into via RPC (must be public)
-  async saveResumeReview(workflowId: string, _review: unknown) {
-    this.setState({
-      ...this.state,
-      jobs: this.state.jobs.map((j) =>
-        j.workflowId === workflowId ? { ...j, status: "done" } : j
-      )
-    });
-  }
-
-  // Fires when a workflow finishes
-  async onWorkflowComplete(
-    workflowName: string,
-    _instanceId: string,
-    _result?: unknown
-  ) {
-    this.broadcast(
-      JSON.stringify({
-        type: "scheduled-task", // reuses the UI's toast handler
-        description: `${workflowName} finished`
-      })
-    );
-  }
-}
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization"
-};
-
-export default {
-  async fetch(request: Request, env: AppEnv) {
-    if (request.method === "OPTIONS") {
-      return new Response(null, { headers: corsHeaders, status: 204 });
+  // Core LLM-powered resume parsing logic
+  async parseResumeTextWithLLM(rawText: string): Promise<ResumeData> {
+    if (!rawText || !rawText.trim()) {
+      throw new Error("No resume text provided");
     }
 
-    const url = new URL(request.url);
-
-    // Endpoint: Parse resume raw text into structured JSON Resume
-    if (url.pathname === "/api/parse-resume" && request.method === "POST") {
-      try {
-        const { rawText } = (await request.json()) as { rawText: string };
-        if (!rawText || !rawText.trim()) {
-          return new Response(
-            JSON.stringify({ error: "No resume text provided" }),
-            {
-              status: 400,
-              headers: { "Content-Type": "application/json", ...corsHeaders }
-            }
-          );
-        }
-
-        const prompt = `You are a resume parsing specialist. Parse the following resume text and format it STRICTLY into a JSON object matching this exact JSON Resume schema:
+    const prompt = `You are a professional resume parsing specialist. Parse the following resume text and format it STRICTLY into a valid JSON object conforming to this exact JSON Resume schema:
 {
   "basics": {
     "name": "Full Name",
@@ -258,7 +120,7 @@ export default {
     "summary": "Summary"
   }],
   "skills": [{
-    "name": "Skill Category (e.g. Web Development, Cloud, Data Science)",
+    "name": "Skill Category (e.g. Frontend Development, Cloud Architecture)",
     "level": "Proficiency level",
     "keywords": ["Skill 1", "Skill 2"]
   }],
@@ -285,160 +147,196 @@ export default {
 }
 
 Instructions:
-1. Extract ALL information present in the resume accurately.
-2. Return ONLY the JSON object. Do not include markdown codeblocks (\`\`\`json), conversational explanations, or extra commentary.
-3. If a section has no information in the resume, omit it or use an empty array.
+1. Extract ALL information present in the resume accurately and completely.
+2. Return ONLY the raw JSON object. Do NOT wrap in markdown codeblocks (\`\`\`json), and do not include extra explanations.
+3. If a section has no information, provide an empty array [] or omit it.
 
 Resume text to parse:
-${rawText.slice(0, 15000)}
+${rawText.slice(0, 16000)}
 `;
 
-        const aiResponse = (await env.AI.run(
-          "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
-          {
-            prompt,
-            max_tokens: 3500
-          }
-        )) as { response?: string } | string;
-
-        let rawOutput =
-          typeof aiResponse === "string"
-            ? aiResponse
-            : aiResponse.response || JSON.stringify(aiResponse);
-        rawOutput = rawOutput.replace(/```(?:json)?/gi, "").trim();
-
-        const firstBrace = rawOutput.indexOf("{");
-        const lastBrace = rawOutput.lastIndexOf("}");
-        if (firstBrace !== -1 && lastBrace !== -1) {
-          rawOutput = rawOutput.slice(firstBrace, lastBrace + 1);
-        }
-
-        const parsedJson = JSON.parse(rawOutput);
-        return new Response(
-          JSON.stringify({ success: true, resume: parsedJson }),
-          {
-            headers: { "Content-Type": "application/json", ...corsHeaders }
-          }
-        );
-      } catch (error: unknown) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error("Resume parsing error:", error);
-        return new Response(
-          JSON.stringify({ error: errorMessage || "Failed to parse resume" }),
-          {
-            status: 500,
-            headers: { "Content-Type": "application/json", ...corsHeaders }
-          }
-        );
+    const aiResponse = (await this.env.AI.run(
+      "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+      {
+        prompt,
+        max_tokens: 3500
       }
+    )) as { response?: string } | string;
+
+    let rawOutput =
+      typeof aiResponse === "string"
+        ? aiResponse
+        : aiResponse.response || JSON.stringify(aiResponse);
+    rawOutput = rawOutput.replace(/```(?:json)?/gi, "").trim();
+
+    const firstBrace = rawOutput.indexOf("{");
+    const lastBrace = rawOutput.lastIndexOf("}");
+    if (firstBrace !== -1 && lastBrace !== -1) {
+      rawOutput = rawOutput.slice(firstBrace, lastBrace + 1);
     }
 
-    // Endpoint: Get user profile from D1
-    if (url.pathname === "/api/profile" && request.method === "GET") {
-      const userId = url.searchParams.get("userId");
-      if (!userId) {
-        return new Response(
-          JSON.stringify({ error: "userId query parameter required" }),
-          {
-            status: 400,
-            headers: { "Content-Type": "application/json", ...corsHeaders }
-          }
-        );
-      }
+    const parsedJson = JSON.parse(rawOutput) as ResumeData;
+    return parsedJson;
+  }
 
-      if (!env.DB) {
-        return new Response(
-          JSON.stringify({ profile: null, warning: "D1 database not bound" }),
-          {
-            headers: { "Content-Type": "application/json", ...corsHeaders }
-          }
-        );
-      }
+  // Callable method: parse extracted resume text via Agent LLM
+  @callable()
+  async parseResume(rawText: string) {
+    try {
+      const resume = await this.parseResumeTextWithLLM(rawText);
+      return { success: true, resume };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("Agent parseResume error:", err);
+      return { success: false, error: message || "Failed to parse resume text" };
+    }
+  }
 
+  // Called from the UI's MCP panel
+  @callable() async addServer(name: string, url: string) {
+    await this.addMcpServer(name, url);
+  }
+  @callable() async removeServer(id: string) {
+    await this.removeMcpServer(id);
+  }
+
+  // Sync profile to D1 helper
+  async syncProfileToDb(profile: ResumeData, rawText?: string) {
+    if (this.state.userId && this.env.DB) {
       try {
-        await ensureDbTables(env.DB);
-        const row = await env.DB.prepare(
+        await ensureDbTables(this.env.DB);
+        await this.env.DB.prepare(
+          `INSERT INTO user_profiles (user_id, resume_json, raw_text, updated_at)
+           VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+           ON CONFLICT(user_id) DO UPDATE SET
+             resume_json = excluded.resume_json,
+             raw_text = COALESCE(excluded.raw_text, user_profiles.raw_text),
+             updated_at = CURRENT_TIMESTAMP`
+        )
+          .bind(this.state.userId, JSON.stringify(profile), rawText || null)
+          .run();
+      } catch (err) {
+        console.error("Failed to sync profile to D1:", err);
+      }
+    }
+  }
+
+  // Callable method: Get user profile from D1 via Agent
+  @callable()
+  async getProfile(userId: string) {
+    if (!userId) return { success: false, error: "userId required", profile: null };
+
+    if (this.env.DB) {
+      try {
+        await ensureDbTables(this.env.DB);
+        const row = await this.env.DB.prepare(
           "SELECT resume_json, updated_at FROM user_profiles WHERE user_id = ?"
         )
           .bind(userId)
           .first<{ resume_json: string; updated_at: string }>();
 
         if (row && row.resume_json) {
-          return new Response(
-            JSON.stringify({
-              profile: JSON.parse(row.resume_json),
-              updatedAt: row.updated_at
-            }),
-            {
-              headers: { "Content-Type": "application/json", ...corsHeaders }
-            }
-          );
+          const profile = JSON.parse(row.resume_json) as ResumeData;
+          return { success: true, profile, updatedAt: row.updated_at };
         }
-        return new Response(JSON.stringify({ profile: null }), {
-          headers: { "Content-Type": "application/json", ...corsHeaders }
-        });
-      } catch (err: unknown) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        return new Response(JSON.stringify({ error: errorMessage }), {
-          status: 500,
-          headers: { "Content-Type": "application/json", ...corsHeaders }
-        });
+      } catch (err) {
+        console.error("Agent getProfile error:", err);
       }
     }
+    return { success: true, profile: null };
+  }
 
-    // Endpoint: Upsert user profile to D1
-    if (url.pathname === "/api/profile" && request.method === "POST") {
+  // Hydrate user session from D1
+  @callable()
+  async setSessionUser(userId: string) {
+    if (!userId) return { success: false };
+    this.setState({ ...this.state, userId });
+
+    if (this.env.DB) {
       try {
-        const { userId, profile, rawText } = (await request.json()) as {
-          userId: string;
-          profile: ResumeData;
-          rawText?: string;
-        };
+        await ensureDbTables(this.env.DB);
+        const row = await this.env.DB.prepare(
+          "SELECT resume_json FROM user_profiles WHERE user_id = ?"
+        )
+          .bind(userId)
+          .first<{ resume_json: string }>();
 
-        if (!userId || !profile) {
-          return new Response(
-            JSON.stringify({ error: "userId and profile are required" }),
-            {
-              status: 400,
-              headers: { "Content-Type": "application/json", ...corsHeaders }
-            }
-          );
+        if (row && row.resume_json) {
+          const profile = JSON.parse(row.resume_json) as ResumeData;
+          this.setState({
+            ...this.state,
+            userId,
+            profile
+          });
+          return { success: true, profile };
         }
+      } catch (err) {
+        console.error(
+          "Error hydrating profile from D1 in setSessionUser:",
+          err
+        );
+      }
+    }
+    return { success: true, profile: this.state.profile };
+  }
 
-        if (!env.DB) {
-          return new Response(
-            JSON.stringify({ error: "D1 database not bound" }),
-            {
-              status: 500,
-              headers: { "Content-Type": "application/json", ...corsHeaders }
-            }
-          );
-        }
+  // Update profile in state and D1
+  @callable()
+  async setProfile(profile: ResumeData, userId?: string, rawText?: string) {
+    const uid = userId || this.state.userId;
+    this.setState({
+      ...this.state,
+      userId: uid,
+      profile
+    });
 
-        await ensureDbTables(env.DB);
-        await env.DB.prepare(
+    if (uid && this.env.DB) {
+      try {
+        await ensureDbTables(this.env.DB);
+        await this.env.DB.prepare(
           `INSERT INTO user_profiles (user_id, resume_json, raw_text, updated_at)
            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
            ON CONFLICT(user_id) DO UPDATE SET
              resume_json = excluded.resume_json,
-             raw_text = excluded.raw_text,
+             raw_text = COALESCE(excluded.raw_text, user_profiles.raw_text),
              updated_at = CURRENT_TIMESTAMP`
         )
-          .bind(userId, JSON.stringify(profile), rawText || null)
+          .bind(uid, JSON.stringify(profile), rawText || null)
           .run();
-
-        return new Response(JSON.stringify({ success: true }), {
-          headers: { "Content-Type": "application/json", ...corsHeaders }
-        });
-      } catch (err: unknown) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        return new Response(JSON.stringify({ error: errorMessage }), {
-          status: 500,
-          headers: { "Content-Type": "application/json", ...corsHeaders }
-        });
+      } catch (err) {
+        console.error("Error saving profile in setProfile:", err);
       }
     }
+    return { success: true, profile: this.state.profile };
+  }
 
+  // Methods the workflows call back into via RPC (must be public)
+  async saveResumeReview(workflowId: string, _review: unknown) {
+    this.setState({
+      ...this.state,
+      jobs: this.state.jobs.map((j) =>
+        j.workflowId === workflowId ? { ...j, status: "done" } : j
+      )
+    });
+  }
+
+  // Fires when a workflow finishes
+  async onWorkflowComplete(
+    workflowName: string,
+    _instanceId: string,
+    _result?: unknown
+  ) {
+    this.broadcast(
+      JSON.stringify({
+        type: "scheduled-task", // reuses the UI's toast handler
+        description: `${workflowName} finished`
+      })
+    );
+  }
+}
+
+export default {
+  async fetch(request: Request, env: AppEnv) {
     return (
       (await routeAgentRequest(request, env)) ??
       new Response("Not found", { status: 404 })

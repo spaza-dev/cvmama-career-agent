@@ -4,6 +4,20 @@ import type { ChatAgent } from "../server";
 import { ResumeSchema } from "../types";
 
 export const careerTools = (agent: ChatAgent) => ({
+  parseResume: tool({
+    description:
+      "Parse raw unformatted resume text into structured JSON Resume format (basics, work, education, skills, projects, etc.) using LLM.",
+    inputSchema: z.object({
+      rawText: z
+        .string()
+        .describe("The unformatted raw text extracted from the resume file")
+    }),
+    execute: async ({ rawText }) => {
+      const parsed = await agent.parseResumeTextWithLLM(rawText);
+      return { success: true, resume: parsed };
+    }
+  }),
+
   saveProfile: tool({
     description:
       "Save or update the user's career profile (supports full JSON Resume format: basics, work, education, skills, projects, etc.).",
