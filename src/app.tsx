@@ -489,11 +489,18 @@ function Chat() {
     async (rawText: string): Promise<ResumeData> => {
       const res = await agent.stub.parseResume(rawText);
       if (!res || !res.success || !res.resume) {
-        throw new Error(res?.error || "Agent LLM parsing failed.");
+        const errorMsg =
+          res?.error || "Workers AI was unable to parse the resume structure.";
+        toasts.add({
+          title: "Workers AI Parsing Notice",
+          description: errorMsg,
+          timeout: 8000
+        });
+        throw new Error(errorMsg);
       }
       return res.resume;
     },
-    [agent]
+    [agent, toasts]
   );
 
   // Profile save handler (Agent persists to D1 or LocalStorage depending on auth)
@@ -578,6 +585,14 @@ function Chat() {
   } = useAgentChat({
     agent,
     experimental_throttle: 100,
+    onError: (err) => {
+      const msg = err instanceof Error ? err.message : String(err);
+      toasts.add({
+        title: "Workers AI Notice",
+        description: msg || "Failed to communicate with Workers AI. Please try again.",
+        timeout: 6000
+      });
+    },
     onToolCall: async ({ toolCall, addToolOutput }) => {
       if (toolCall.toolName === "getUserTimezone") {
         addToolOutput({
@@ -1282,6 +1297,26 @@ function Chat() {
                           >
                             {part.text}
                           </Streamdown>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  if (part.type === "error") {
+                    const errorText =
+                      (part as { errorText?: string; text?: string }).errorText ||
+                      (part as { errorText?: string; text?: string }).text ||
+                      "Cloudflare Workers AI encountered an issue generating a response.";
+                    return (
+                      <div key={key} className="flex gap-2 sm:gap-3 justify-start">
+                        <div className="max-w-[90%] sm:max-w-[82%] rounded-2xl px-4 py-3 bg-kumo-base border border-kumo-line text-kumo-default shadow-xs space-y-1.5">
+                          <div className="flex items-center gap-2 text-xs font-medium text-kumo-default">
+                            <XCircleIcon size={15} className="text-kumo-subtle shrink-0" />
+                            <span>Workers AI Generation Notice</span>
+                          </div>
+                          <p className="text-xs text-kumo-subtle leading-relaxed whitespace-pre-wrap">
+                            {errorText}
+                          </p>
                         </div>
                       </div>
                     );

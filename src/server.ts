@@ -1,24 +1,23 @@
 import { routeAgentRequest, callable } from "agents";
 import { AIChatAgent } from "@cloudflare/ai-chat";
-import { streamText, convertToModelMessages, stepCountIs } from "ai";
+import {
+  streamText,
+  convertToModelMessages,
+  stepCountIs,
+  createUIMessageStream,
+  createUIMessageStreamResponse
+} from "ai";
 import { createTools } from "./tools";
 import { getSystemPrompt } from "./prompts";
-import { getChatModels, parseResumeWithFailover } from "./ai/dispatcher";
+import { getChatModel, parseResumeWithAI } from "./ai/dispatcher";
 import type { CareerState, ResumeData } from "./types";
 
 export interface AppEnv extends Env {
   DB?: D1Database;
-  DEFAULT_AI_PROVIDER?: "workers-ai" | "gateway";
-  AI_FAILOVER_ENABLED?: string | boolean;
+  AI: Ai;
   WORKERS_AI_CHAT_MODEL?: string;
   WORKERS_AI_PARSER_MODEL?: string;
-  CF_AIG_ACCOUNT_ID?: string;
   CF_AIG_GATEWAY_NAME?: string;
-  GATEWAY_PROVIDER?: string;
-  GATEWAY_MODEL?: string;
-  GEMINI_API_KEY?: string;
-  OPENAI_API_KEY?: string;
-  ANTHROPIC_API_KEY?: string;
 }
 
 // Workflows must be exported from the worker entry
@@ -57,20 +56,16 @@ export class ChatAgent extends AIChatAgent<AppEnv, CareerState> {
          this.state.profile.education?.length))
     );
 
-    const {
-      primaryModel,
-      fallbackModel,
-      primaryProviderName,
-      fallbackProviderName
-    } = getChatModels(this.env);
-
     const system = getSystemPrompt(this.state.profile, isOnboarded);
     const messages = await convertToModelMessages(this.messages);
     const tools = { ...createTools(this), ...this.mcp.getAITools() };
+    const chatModelName =
+      this.env.WORKERS_AI_CHAT_MODEL || "@cf/openai/gpt-oss-20b";
 
     try {
+      const model = getChatModel(this.env);
       const result = streamText({
-        model: primaryModel,
+        model,
         system,
         messages,
         tools,
@@ -78,34 +73,37 @@ export class ChatAgent extends AIChatAgent<AppEnv, CareerState> {
         maxOutputTokens: 4096,
         onFinish
       });
-      return result.toUIMessageStreamResponse();
-    } catch (primaryErr) {
-      console.warn(
-        `[ChatAgent] Primary model (${primaryProviderName}) failed:`,
-        primaryErr
+      return result.toUIMessageStreamResponse({
+        onError: (err) => {
+          const detail = err instanceof Error ? err.message : String(err);
+          console.error(
+            `[ChatAgent] Workers AI stream error (${chatModelName}):`,
+            err
+          );
+          return `Cloudflare Workers AI Error: ${detail}`;
+        }
+      });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(
+        `[ChatAgent] Workers AI model failed to start (${chatModelName}):`,
+        err
       );
-      if (fallbackModel) {
-        console.info(
-          `[ChatAgent] Falling over to alternative model (${fallbackProviderName})...`
-        );
-        const fallbackResult = streamText({
-          model: fallbackModel,
-          system,
-          messages,
-          tools,
-          stopWhen: stepCountIs(8),
-          maxOutputTokens: 4096,
-          onFinish
-        });
-        return fallbackResult.toUIMessageStreamResponse();
-      }
-      throw primaryErr;
+      const errorStream = createUIMessageStream({
+        execute: ({ writer }) => {
+          writer.write({
+            type: "text",
+            text: `⚠️ **Cloudflare Workers AI Error**\n\nUnable to generate response using model \`${chatModelName}\`.\n\n**Details**: ${message}\n\nPlease verify that Cloudflare Workers AI is available and try again.`
+          });
+        }
+      });
+      return createUIMessageStreamResponse({ stream: errorStream });
     }
   }
 
-  // Core LLM-powered resume parsing logic with bidirectional failover
+  // Core LLM-powered resume parsing logic strictly via Workers AI binding
   async parseResumeTextWithLLM(rawText: string): Promise<ResumeData> {
-    return await parseResumeWithFailover(this.env, rawText);
+    return await parseResumeWithAI(this.env, rawText);
   }
 
   // Callable method: parse extracted resume text via Agent LLM
