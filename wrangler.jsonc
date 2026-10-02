@@ -14,7 +14,7 @@
 		"binding": "AI"
 	},
 	"vars": {
-		"DEFAULT_AI_PROVIDER": "workers-ai",
+		"DEFAULT_AI_PROVIDER": "gateway",
 		"AI_FAILOVER_ENABLED": "true",
 		"WORKERS_AI_CHAT_MODEL": "@cf/openai/gpt-oss-20b",
 		"WORKERS_AI_PARSER_MODEL": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
