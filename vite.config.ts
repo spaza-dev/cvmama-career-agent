@@ -15,7 +15,16 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.ico", "apple-touch-icon.png", "icon.svg", "pwa-192x192.png", "pwa-512x512.png", "pwa-maskable-512x512.png", "cvmama_logo.svg", "logo.svg"],
+      includeAssets: [
+        "favicon.ico",
+        "favicon.png",
+        "apple-touch-icon.png",
+        "pwa-192x192.png",
+        "pwa-512x512.png",
+        "pwa-maskable-512x512.png",
+        "cvmama_logo.png",
+        "cvmama_logo_horizontal.png"
+      ],
       manifest: {
         id: "/",
         name: "CVmama Career Agent",
