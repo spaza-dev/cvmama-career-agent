@@ -36,7 +36,6 @@ import {
   IdentificationCardIcon,
   UploadSimpleIcon,
   BriefcaseIcon,
-  ClipboardTextIcon,
   ShareNetworkIcon,
   PlusCircleIcon,
   ListIcon
@@ -302,7 +301,7 @@ function Chat() {
       return null;
     }
   });
-  const [onboardingTab, setOnboardingTab] = useState<"upload" | "paste">("upload");
+  const [_onboardingTab, _setOnboardingTab] = useState<"upload" | "paste">("upload");
   const [pastedResumeText, setPastedResumeText] = useState("");
   const [isResumeDrawerOpen, setIsResumeDrawerOpen] = useState(false);
   const [isExtractingResume, setIsExtractingResume] = useState(false);
@@ -636,7 +635,7 @@ function Chat() {
     [sendMessage, toasts]
   );
 
-  const handlePastedResumeSubmit = useCallback(() => {
+  const _handlePastedResumeSubmit = useCallback(() => {
     const text = pastedResumeText.trim();
     if (!text || text.length < 30) {
       toasts.add({

@@ -21,6 +21,8 @@
     "check": "oxfmt --check . && oxlint src/ && tsc"
   },
   "dependencies": {
+    "@ai-sdk/google": "^4.0.87",
+    "@ai-sdk/openai": "^4.0.83",
     "@clerk/clerk-react": "^5.61.10",
     "@cloudflare/ai-chat": "^0.9.3",
     "@cloudflare/kumo": "^2.6.0",

@@ -2,5 +2,7 @@
   "name": "cvmama",
   "description": "cvmama - AI career assistant and resume agent",
   "permissions": [],
-  "capabilities": []
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

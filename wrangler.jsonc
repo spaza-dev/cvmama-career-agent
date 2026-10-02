@@ -13,6 +13,16 @@
 	"ai": {
 		"binding": "AI"
 	},
+	"vars": {
+		"DEFAULT_AI_PROVIDER": "workers-ai",
+		"AI_FAILOVER_ENABLED": "true",
+		"WORKERS_AI_CHAT_MODEL": "@cf/openai/gpt-oss-20b",
+		"WORKERS_AI_PARSER_MODEL": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+		"CF_AIG_ACCOUNT_ID": "",
+		"CF_AIG_GATEWAY_NAME": "",
+		"GATEWAY_PROVIDER": "google-ai-studio",
+		"GATEWAY_MODEL": "gemini-3.8-flash"
+	},
 	"assets": {
 		"directory": "./public",
 		"not_found_handling": "single-page-application",

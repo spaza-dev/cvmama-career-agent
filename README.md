@@ -225,6 +225,39 @@ Create a `.env` file with your API key:
 ANTHROPIC_API_KEY=your-key-here
 ```
 
+## Multi-Model Architecture (Workers AI & Cloudflare AI Gateway)
+
+CVMama includes a unified, bidirectional AI Dispatcher (`src/ai/dispatcher.ts`) supporting both **Cloudflare Workers AI** (edge GPU) and external models (such as **Google Gemini**) routed exclusively through **Cloudflare AI Gateway**.
+
+### How It Works
+
+- **Zero Direct External Connections**: All external calls route through your Cloudflare AI Gateway endpoint (`gateway.ai.cloudflare.com/v1/{account_id}/{gateway_id}/{provider}`).
+- **Bidirectional Automatic Fallback**:
+  - If `DEFAULT_AI_PROVIDER="workers-ai"`: Workers AI is primary; fails over to your configured AI Gateway model (e.g. Gemini `gemini-3.8-flash`) if an error or rate limit occurs.
+  - If `DEFAULT_AI_PROVIDER="gateway"`: AI Gateway is primary; fails over to Workers AI (`@cf/meta/llama-3.3-70b-instruct-fp8-fast` / `@cf/openai/gpt-oss-20b`) if the gateway request fails.
+- **Model Agnostic**: Works out-of-the-box with Google Gemini (`gemini-3.8-flash`), OpenAI (`gpt-4o`, `gpt-4o-mini`), and other providers supported by Cloudflare AI Gateway.
+
+### Configuration (`wrangler.jsonc` or `.dev.vars` / `.env`)
+
+```bash
+# Set primary engine: "workers-ai" or "gateway"
+DEFAULT_AI_PROVIDER="workers-ai"
+AI_FAILOVER_ENABLED="true"
+
+# Workers AI models
+WORKERS_AI_CHAT_MODEL="@cf/openai/gpt-oss-20b"
+WORKERS_AI_PARSER_MODEL="@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+
+# Cloudflare AI Gateway
+CF_AIG_ACCOUNT_ID="your_account_id"
+CF_AIG_GATEWAY_NAME="your_gateway_name"
+GATEWAY_PROVIDER="google-ai-studio"
+GATEWAY_MODEL="gemini-3.8-flash"
+
+# Provider secret (passed only to Cloudflare AI Gateway)
+GEMINI_API_KEY="your-gemini-api-key"
+```
+
 ## Deploy
 
 ```bash

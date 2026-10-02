@@ -1,7 +1,8 @@
 import { AgentWorkflow } from "agents/workflows";
 import type { AgentWorkflowEvent, AgentWorkflowStep } from "agents/workflows";
-import type { ChatAgent } from "../server";
+import type { ChatAgent, AppEnv } from "../server";
 import type { ResumeReviewParams } from "../types";
+import { runWorkflowInference } from "../ai/dispatcher";
 
 export class ResumeReviewWorkflow extends AgentWorkflow<
   ChatAgent,
@@ -27,9 +28,10 @@ export class ResumeReviewWorkflow extends AgentWorkflow<
       "analyze",
       { retries: { limit: 3, delay: "10 seconds", backoff: "exponential" } },
       async () =>
-        this.env.AI.run("@cf/meta/llama-3.3-70b-instruct-fp8-fast", {
-          prompt: `Review these resume sections for a ${targetRole ?? "general"} role:\n${JSON.stringify(sections)}`
-        })
+        runWorkflowInference(
+          (this.agent?.env || this.env) as AppEnv,
+          `Review these resume sections for a ${targetRole ?? "general"} role:\n${JSON.stringify(sections)}`
+        )
     );
 
     await step.do("save", async () => {
