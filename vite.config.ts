@@ -15,13 +15,13 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.ico", "apple-touch-icon.png", "pwa-192x192.png", "pwa-512x512.png", "cvmama_logo.svg"],
+      includeAssets: ["favicon.ico", "apple-touch-icon.png", "icon.svg", "pwa-192x192.png", "pwa-512x512.png", "pwa-maskable-512x512.png", "cvmama_logo.svg", "logo.svg"],
       manifest: {
         id: "/",
-        name: "CV Mama Career Agent",
-        short_name: "CVMama",
+        name: "CVmama Career Agent",
+        short_name: "CVmama",
         description: "AI career assistant and resume agent built with Cloudflare Agents",
-        theme_color: "#4898AD",
+        theme_color: "#58A8C4",
         background_color: "#0d0e11",
         display: "standalone",
         start_url: "/",

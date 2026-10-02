@@ -33,7 +33,7 @@ async function generateIcons() {
       width: 512,
       height: 512,
       channels: 4,
-      background: { r: 72, g: 152, b: 173, alpha: 1 }
+      background: { r: 88, g: 168, b: 196, alpha: 1 }
     }
   })
     .composite([{ input: innerResized, top: 51, left: 51 }])

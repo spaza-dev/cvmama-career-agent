@@ -806,7 +806,7 @@ function Chat() {
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-2 sm:gap-3">
           {/* Left: Brand Logo & Title */}
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* <Logo size="sm" className="sm:hidden" /> */}
+            <Logo size="sm" className="inline-flex sm:hidden" />
             <Logo size="md" className="hidden sm:inline-flex" />
             <span className="h-4 w-px bg-kumo-line" />
             <span className="text-xs text-kumo-default font-semibold tracking-tight">
