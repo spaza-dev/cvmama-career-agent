@@ -1,38 +1,35 @@
-import { AgentWorkflow } from "agents/workflows";
-import type { AgentWorkflowEvent, AgentWorkflowStep } from "agents/workflows";
-import type { ChatAgent } from "../server";
-import type { JobSearchParams } from "../types";
+import { sourceJobListings, calculateJobMatchScore } from "../tools/sourcing";
+import type { ResumeData, JobListing } from "../types";
 
-export class JobSearchWorkflow extends AgentWorkflow<
-  ChatAgent,
-  JobSearchParams
-> {
-  async run(
-    event: AgentWorkflowEvent<JobSearchParams>,
-    step: AgentWorkflowStep
-  ) {
-    const { query, location } = event.payload;
-
-    await this.reportProgress({
-      step: "search",
-      status: "running",
-      percent: 0.3
-    });
-
-    // Placeholder: swap in a real job-board API or MCP tool here
-    const results = await step.do(
-      "search",
-      { retries: { limit: 3, delay: "5 seconds", backoff: "exponential" } },
-      async () => [
-        {
-          title: `${query} (sample)`,
-          company: "Example Co",
-          location: location ?? "Remote"
-        }
-      ]
-    );
-
-    await step.reportComplete(results);
-    return results;
+export class JobSearchWorkflow {
+  async run(query: string, location?: string, profile?: ResumeData, envAi?: any) {
+    return await runJobSearchWorkflow(query, location, profile, envAi);
   }
+}
+
+export async function runJobSearchWorkflow(
+  query: string,
+  location?: string,
+  profile?: ResumeData,
+  envAi?: any
+) {
+  const sourcingResult = await sourceJobListings(query, location, profile, envAi);
+
+  if (profile && sourcingResult.jobs.length > 0) {
+    const scoredJobs: JobListing[] = [];
+    for (const job of sourcingResult.jobs) {
+      const match = await calculateJobMatchScore(profile, job, envAi);
+      scoredJobs.push({
+        ...job,
+        matchScore: match.score,
+        matchingKeywords: match.matchedKeywords,
+        missingQualifications: match.missingKeywords
+      });
+    }
+    // Sort descending by match score
+    scoredJobs.sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0));
+    return { success: true, jobs: scoredJobs, count: scoredJobs.length };
+  }
+
+  return sourcingResult;
 }

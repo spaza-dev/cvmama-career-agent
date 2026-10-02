@@ -1,69 +1,136 @@
-# Revised Implementation Plan: Strict Workers AI & AI Gateway via Binding
+# Modular Autonomous Career Intelligence Platform Architecture (Cloudflare Workers AI, AI Gateway & Browser Run)
 
-## Objectives
-1. **Strictly Cloudflare Workers AI via Binding**: Connect Workers AI and AI Gateway solely through the native `AI` binding (`env.AI`). No external HTTP calls, no third-party SDKs (`@ai-sdk/google`, `@ai-sdk/openai`), and no external API keys required.
-2. **Remove All Failovers**: Completely strip out secondary models, retry failover loops, and provider-switching logic. Keep the pipeline simple, clean, and direct.
-3. **Explicit User-Facing Error Reporting**: When a model, stream, or parsing operation fails or is unavailable, immediately inform the user with a clear, descriptive in-UI error message instead of silently hanging or failing without explanation.
+An end-to-end modular architecture and implementation plan for **CVMama**, an autonomous, proactive AI Career Agent built on **Cloudflare Workers AI (`env.AI`), Cloudflare AI Gateway, and Cloudflare Browser Run (`env.BROWSER` with Stagehand & Puppeteer)**. Features templated PDF/DOCX resume generation, automated application execution, clean in-stream chat widgets, and dynamic slide-over drawers—**100% preserving the existing single-panel UI layout**.
 
-## Architecture
+---
 
-### 1. Configuration Cleanup (`wrangler.jsonc` & `.env.example`)
-- Remove obsolete external gateway vars:
-  - Remove `DEFAULT_AI_PROVIDER`
-  - Remove `AI_FAILOVER_ENABLED`
-  - Remove `GATEWAY_PROVIDER`
-  - Remove `GATEWAY_MODEL`
-  - Remove `CF_AIG_ACCOUNT_ID`
-  - Remove `GEMINI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`
-- Retain only the essentials for the `AI` binding:
-  ```jsonc
-  "ai": {
-    "binding": "AI"
-  },
-  "vars": {
-    "WORKERS_AI_CHAT_MODEL": "@cf/openai/gpt-oss-20b",
-    "WORKERS_AI_PARSER_MODEL": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
-    "CF_AIG_GATEWAY_NAME": "default"
-  }
-  ```
+## User Review & Technology Stack Constraints
 
-### 2. Streamlined AI Client (`src/ai/dispatcher.ts`)
-- Replace the complex failover dispatcher with a straightforward, unified client:
-  - **`getChatModel(env)`**:
-    ```ts
-    const gatewayId = env.CF_AIG_GATEWAY_NAME?.trim() || "default";
-    const workersai = createWorkersAI({
-      binding: env.AI,
-      gateway: { id: gatewayId }
-    });
-    return workersai(env.WORKERS_AI_CHAT_MODEL || "@cf/openai/gpt-oss-20b");
-    ```
-  - **`parseResume(env, rawText)`**:
-    Calls `env.AI.run(parserModel, { prompt, max_tokens: 3500 }, { gateway: { id: gatewayId } })`.
-    Extracts the JSON structure. If Workers AI fails or returns invalid output, throws a descriptive error detailing the exact issue.
-  - **`runWorkflowInference(env, prompt)`**:
-    Directly runs `env.AI.run(parserModel, { prompt }, { gateway: { id: gatewayId } })`.
+> [!IMPORTANT]
+> **Strict Technology Stack Specifications**:
+> 1. **UI Layout Constraint**: Single-panel chat interface (no dual-pane). In-stream chat widgets provide high-level summaries, while dynamic slide-over drawers provide deep inspection, editing, and live previews.
+> 2. **AI Infrastructure**: 100% Cloudflare Workers AI (`env.AI`) and Cloudflare AI Gateway via bindings and headers (`cf-aig-gateway-id`). No direct third-party AI SDKs.
+> 3. **Document Rendering (PDF & DOCX)**: Templated HTML resume and cover letter rendering converted to high-fidelity PDF via **Cloudflare Browser Run (`@cloudflare/puppeteer` / `/pdf` endpoint)** and styled DOCX files via structured document synthesis (`docx` / `mammoth`).
+> 4. **Browser Automation Engine**: **Stagehand (`@browserbasehq/stagehand`) on Cloudflare Browser Run (`env.BROWSER`)** for resilient, AI-driven job sourcing, career page scraping, and automated form filling with human handoff sign-off.
 
-### 3. Transparent Error Handling in Chat Agent (`src/server.ts`)
-- In `ChatAgent.onChatMessage`:
-  - Run `streamText` directly with the configured Workers AI model.
-  - Configure `toUIMessageStreamResponse`:
-    - Catch initialization errors and stream-abort errors.
-    - Transform errors into structured UI error responses or fallback messages explaining:
-      `⚠️ Cloudflare Workers AI Error: [Error Details]. Please try again in a moment.`
-- In `ChatAgent.parseResume`:
-  - Return `{ success: false, error: err.message }` with specific details on failure.
+---
 
-### 4. User-Facing Error Presentation in Frontend (`src/app.tsx`)
-- In `useAgentChat`:
-  - Add `onError` listener to trigger toast notifications with exact error text.
-- In chat message render pipeline:
-  - Add explicit visual handling for message parts of type `error` with a styled warning card, detailing the model error and showing an action button to retry.
-- In resume onboarding & drawer parsing:
-  - Surface detailed error banners if Workers AI parsing fails so the user knows whether the document had unreadable text, or if the model hit a capacity limit.
+## 1. Cloudflare Browser Run & Stagehand Integration Architecture
 
-## Verification
-1. Run `oxlint src/` to verify zero errors or warnings.
-2. Verify `npm run check` and TypeScript types.
-3. Test that normal prompts stream smoothly through `env.AI` with AI Gateway logging.
-4. Test that any model outage or syntax issue outputs an immediate, informative error message to the user rather than failing silently.
+### Browser Run Engine (`src/tools/browserRun.ts`)
+
+```
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                        SERVER & WORKERS AGENT CORE (server.ts)                         │
+│                                                                                        │
+│   ┌────────────────────────────────────────────────────────────────────────────────┐   │
+│   │                    ChatAgent Orchestrator (Durable Object)                     │   │
+│   │             Workers AI + Cloudflare AI Gateway ("cvmama-gateway")             │   │
+│   └───────────────────────────────────────┬────────────────────────────────────────┘   │
+│                                           │                                            │
+│                       ┌───────────────────▼───────────────────┐                        │
+│                       │    Cloudflare Browser Run Engine     │                        │
+│                       │          (env.BROWSER Binding)        │                        │
+│                       └───────────────────┬───────────────────┘                        │
+│                                           │                                            │
+│         ┌─────────────────────────────────┴─────────────────────────────────┐          │
+│         │                                                                   │          │
+┌─────────▼─────────────────────────────┐         ┌───────────────────────────▼─────────┐│
+│ Stagehand AI Automation Engine        │         │ HTML-to-PDF Rendering Engine        ││
+│ (@browserbasehq/stagehand v2.5.x)     │         │ (@cloudflare/puppeteer)             ││
+│ · stagehand.act() - Fill Forms        │         │ · page.setContent(htmlTemplate)     ││
+│ · stagehand.extract() - Scrape Jobs   │         │ · page.pdf({ format: 'A4' })        ││
+│ · stagehand.observe() - Detect Fields │         │ · Styled DOCX Document Synthesis    ││
+└─────────┬─────────────────────────────┘         └───────────┬─────────────────────────┘│
+          │                                                   │                          │
+          └─────────────────────────────────┬─────────────────┘                          │
+                                            │                                            │
+                         ┌──────────────────▼──────────────────┐                         │
+                         │ Dynamic Drawers & User Handoff UI   │                         │
+                         │ (Live Portal Preview & Sign-Off)    │                         │
+                         └─────────────────────────────────────┘                         │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 2. Complete Catalog of Inline Chat Widgets & Dynamic Drawers
+
+All user interactions strictly preserve the existing single-panel Kumo layout:
+
+### A. Resume & Cover Letter Module (Templated PDF & DOCX)
+- **Inline Widget**: `ResumeOnboardingWidget` (Parse confirmation card with extracted metrics)
+- **Inline Widget**: `TailoredPackageWidget` (ATS alignment score, key edits summary, PDF/DOCX download triggers)
+- **Dynamic Drawer**: `ResumeMasterDataDrawer` (Full JSON Resume schema editor & section tabs)
+- **Dynamic Drawer**: `TailoredDocumentPreviewDrawer` (HTML template picker, side-by-side ATS resume & cover letter PDF viewer, DOCX export, and diff editor)
+
+### B. Job Search, Sourcing & Application Module (Stagehand Automation)
+- **Inline Widget**: `JobMatchCardWidget` (Compact match card with `tabular-nums` match score)
+- **Inline Widget**: `ApplicationAutomationWidget` (Live Stagehand automation step progress tracker)
+- **Dynamic Drawer**: `JobDetailsDrawer` (Full job description, required skills, and salary benchmarks)
+- **Dynamic Drawer**: `ApplicationHandoffDrawer` (Live browser portal preview frame, pre-filled form fields, CAPTCHA/MFA prompt, and human sign-off button)
+
+### C. Career Development Module
+- **Inline Widget**: `RoadmapSummaryWidget` (Timeline summary card with 3 core milestone phases)
+- **Inline Widget**: `SkillGapAlertWidget` (Missing skills alert card with 1-click course search)
+- **Dynamic Drawer**: `CareerRoadmapDrawer` (Interactive milestone chart & skill gap radar)
+- **Dynamic Drawer**: `CourseDiscoveryDrawer` (Curated certifications, courses, and mentor discoveries)
+
+### D. Interview Preparation Module
+- **Inline Widget**: `MockInterviewQuestionWidget` (Question card with voice recorder)
+- **Inline Widget**: `StarFeedbackWidget` (STAR framework rating scorecard)
+- **Dynamic Drawer**: `InterviewStudioDrawer` (Webcam preview, audio monitor, & transcript log)
+- **Dynamic Drawer**: `InterviewAnalyticsDrawer` (STAR breakdown & verbatim feedback)
+
+---
+
+## 3. Complete Tool Inventory & Model / Engine Mapping
+
+| Tool Name | Category & Purpose | Underlying Engine / Service | Gateway / Routing Config |
+| :--- | :--- | :--- | :--- |
+| **Agent Orchestrator** | Intent analysis & workflow routing | Workers AI `@cf/meta/llama-3.3-70b-instruct` | `cf-aig-gateway-id: cvmama-gateway` |
+| `parseResumeText` | Parses PDF/DOCX to JSON Resume | Workers AI `@cf/meta/llama-3.3-70b-instruct` | `cf-aig-gateway-id: cvmama-gateway` |
+| `renderResumeHtml` | Generates HTML resume from templates | Internal Template Engine (Modern, Tech, Exec) | Local Synthesis |
+| `generatePdfWithBrowserRun` | Converts HTML templates to PDF | Cloudflare Browser Run (`@cloudflare/puppeteer`) | `env.BROWSER` Binding |
+| `generateDocxDocument` | Synthesizes styled `.docx` files | Structured DOCX Writer (`docx` library) | Local Synthesis |
+| `sourceJobListings` | Searches & aggregates job postings | Workers AI `@cf/deepseek-ai/deepseek-r1-distill-qwen-32b` | `cf-aig-gateway-id: cvmama-gateway` |
+| `calculateJobMatchScore` | Vector embeddings & match scoring | Workers AI `@cf/baai/bge-large-en-v1.5` | Direct `env.AI` Binding |
+| `generateTailoredResume` | ATS keyword resume tailoring | Workers AI `@cf/qwen/qwen2.5-coder-32b-instruct` | `cf-aig-gateway-id: cvmama-gateway` |
+| `generateCoverLetter` | Hiring team cover letters | Workers AI `@cf/meta/llama-3.3-70b-instruct` | `cf-aig-gateway-id: cvmama-gateway` |
+| `automateApplicationWithStagehand` | Automated form filling on career portals | Stagehand (`@browserbasehq/stagehand`) | `env.BROWSER` + Workers AI |
+| `requestHumanHandoff` | Pauses automation at sign-off / CAPTCHA | Application Handoff Drawer State | User Handoff Event |
+| `analyzeSkillGaps` | Skill gap benchmark calculations | Workers AI `@cf/meta/llama-3.3-70b-instruct` | `cf-aig-gateway-id: cvmama-gateway` |
+| `generateCareerRoadmap` | Milestone & roadmap synthesis | Workers AI `@cf/meta/llama-3.3-70b-instruct` | `cf-aig-gateway-id: cvmama-gateway` |
+| `generateInterviewQuestions` | Company-tailored interview questions | Workers AI `@cf/meta/llama-3.3-70b-instruct` | `cf-aig-gateway-id: cvmama-gateway` |
+| `evaluateStarResponse` | STAR response rubric scoring | Workers AI `@cf/meta/llama-3.3-70b-instruct` | `cf-aig-gateway-id: cvmama-gateway` |
+
+---
+
+## 4. Step-by-Step Implementation Strategy
+
+1. **Phase 1: Cloudflare Browser Run, Workers AI Dispatcher & Dependencies**
+   - Install required packages: `@cloudflare/puppeteer`, `@browserbasehq/stagehand`, `docx`.
+   - Configure `wrangler.jsonc` with `browser` binding (`"browser": { "binding": "MY_BROWSER" }`).
+   - Implement `src/ai/dispatcher.ts` for Workers AI and AI Gateway REST routing (`cf-aig-gateway-id`).
+
+2. **Phase 2: Templated Document Synthesis & Stagehand Tools**
+   - Create `src/tools/documentGenerator.ts`: HTML resume templates, Puppeteer PDF rendering via `env.BROWSER`, and `docx` synthesis.
+   - Create `src/tools/stagehandAutomation.ts`: Stagehand AI browser actions for portal navigation and automated form filling.
+   - Implement modular tool registry in `src/tools/` (`masterData.ts`, `sourcing.ts`, `application.ts`, `career.ts`, `interview.ts`, `mcp/`).
+
+3. **Phase 3: Clean In-Stream Chat Widgets**
+   - Build lightweight, professional widgets in `src/components/widgets/`:
+     - `ResumeOnboardingWidget.tsx` & `TailoredPackageWidget.tsx`
+     - `JobMatchCardWidget.tsx` & `ApplicationAutomationWidget.tsx`
+     - `RoadmapSummaryWidget.tsx` & `SkillGapAlertWidget.tsx`
+     - `MockInterviewQuestionWidget.tsx` & `StarFeedbackWidget.tsx`
+   - Mount widgets directly into `ToolPartView` inside `src/app.tsx`.
+
+4. **Phase 4: Dynamic Slide-Over Drawers System**
+   - Build `TailoredDocumentPreviewDrawer.tsx` with PDF/DOCX template preview and download options.
+   - Build `ApplicationHandoffDrawer.tsx` for live Stagehand automation preview and user sign-off.
+   - Enhance `ResumeDrawer.tsx`, `CareerRoadmapDrawer.tsx`, `CourseDiscoveryDrawer.tsx`, `InterviewStudioDrawer.tsx`, and `InterviewAnalyticsDrawer.tsx`.
+
+5. **Phase 5: Proactive Background Engine & Build Validation**
+   - Configure Cloudflare Alarm / Scheduled Timers in `src/server.ts` for background job monitoring.
+   - Run `lint_applet` and `compile_applet` to verify pristine compilation.

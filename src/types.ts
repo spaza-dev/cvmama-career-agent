@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+// ── 1. Resume & Career Master Data Schemas ─────────────────────────────────────
+
 export const ResumeLocationSchema = z.object({
   address: z.string().optional(),
   postalCode: z.string().optional(),
@@ -131,26 +133,6 @@ export type ResumeEducation = z.infer<typeof ResumeEducationSchema>;
 export type ResumeSkill = z.infer<typeof ResumeSkillSchema>;
 export type ResumeProject = z.infer<typeof ResumeProjectSchema>;
 
-export type Application = {
-  id: string;
-  company: string;
-  role: string;
-  status: "saved" | "applied" | "interview" | "offer" | "rejected";
-};
-
-export type CareerState = {
-  profile: ResumeData;
-  pendingProfile?: ResumeData | null;
-  isOnboarded?: boolean;
-  userId?: string;
-  applications: Application[];
-  jobs: {
-    workflowId: string;
-    kind: string;
-    status: "running" | "done" | "error";
-  }[];
-};
-
 export function isProfileOnboarded(profile?: ResumeData | null): boolean {
   if (!profile) return false;
   const name = profile.basics?.name?.trim();
@@ -162,6 +144,166 @@ export function isProfileOnboarded(profile?: ResumeData | null): boolean {
   return Boolean(hasWork || hasEducation || hasSkills || hasSummary);
 }
 
+// ── 2. Cloudflare AI Gateway & Workers AI Config Schemas ─────────────────────
+
+export interface ToolAIConfig {
+  gatewayId?: string;
+  accountId?: string;
+  modelName: string;
+  temperature?: number;
+  maxTokens?: number;
+}
+
+export interface DefaultAIConfigurations {
+  orchestrator: ToolAIConfig;
+  resumeParser: ToolAIConfig;
+  jobSearch: ToolAIConfig;
+  tailorPackage: ToolAIConfig;
+  roadmapGen: ToolAIConfig;
+  interviewCoach: ToolAIConfig;
+}
+
+// ── 3. Job Sourcing & Application Schemas ──────────────────────────────────────
+
+export interface JobListing {
+  id: string;
+  title: string;
+  company: string;
+  location: string;
+  type?: string; // Full-time, Remote, Hybrid, etc.
+  salaryRange?: string;
+  url: string;
+  description: string;
+  postedDate?: string;
+  matchScore?: number; // 0 - 100
+  matchingKeywords?: string[];
+  missingQualifications?: string[];
+}
+
+export interface TailoredPackage {
+  id: string;
+  jobId: string;
+  jobTitle: string;
+  companyName: string;
+  atsMatchScore: number;
+  tailoredResume: ResumeData;
+  coverLetterText: string;
+  templateStyle: "modern" | "executive" | "technical" | "minimalist";
+  keyEditsSummary: string[];
+}
+
+export interface ApplicationRecord {
+  id: string;
+  jobId: string;
+  company: string;
+  role: string;
+  appliedDate: string;
+  status: "saved" | "tailored" | "applying" | "applied" | "interview" | "offer" | "rejected";
+  portalType?: "greenhouse" | "lever" | "workday" | "linkedin" | "generic";
+  portalUrl?: string;
+  notes?: string;
+}
+
+// ── 4. Career Roadmap & Skill Gap Schemas ──────────────────────────────────────
+
+export interface SkillGapItem {
+  skill: string;
+  importance: "high" | "medium" | "low";
+  currentLevel: string;
+  targetLevel: string;
+  suggestedAction: string;
+}
+
+export interface CourseDiscovery {
+  id: string;
+  title: string;
+  provider: string; // e.g., Coursera, Udemy, edX
+  skill: string;
+  rating?: number;
+  url: string;
+  estimatedDuration?: string;
+}
+
+export interface NetworkContact {
+  id: string;
+  name: string;
+  role: string;
+  company: string;
+  connectionType: "Recruiter" | "Mentor" | "Peer" | "Alumni";
+  profileUrl?: string;
+}
+
+export interface CareerRoadmap {
+  id: string;
+  targetRole: string;
+  timeframe: string; // e.g. "6-12 Months"
+  currentMatchPercentage: number;
+  keyMilestones: {
+    quarter: string;
+    title: string;
+    description: string;
+    deliverables: string[];
+  }[];
+  skillGaps: SkillGapItem[];
+  courses: CourseDiscovery[];
+  recommendedContacts: NetworkContact[];
+}
+
+// ── 5. Multimodal Interview Preparation Schemas ────────────────────────────────
+
+export interface InterviewQuestion {
+  id: string;
+  question: string;
+  category: "behavioral" | "technical" | "situational" | "system-design";
+  companyContext?: string;
+  hints?: string[];
+}
+
+export interface StarEvaluation {
+  overallScore: number; // 0 - 10
+  situationFeedback: string;
+  taskFeedback: string;
+  actionFeedback: string;
+  resultFeedback: string;
+  keyStrengths: string[];
+  areasForImprovement: string[];
+  suggestedRevision: string;
+}
+
+export interface MockSession {
+  id: string;
+  jobTitle: string;
+  companyName: string;
+  questions: InterviewQuestion[];
+  currentQuestionIndex: number;
+  userResponses: {
+    questionId: string;
+    userAudioUrl?: string;
+    userText?: string;
+    evaluation?: StarEvaluation;
+  }[];
+  status: "in_progress" | "completed";
+}
+
+// ── 6. Agent State Schema ──────────────────────────────────────────────────────
+
+export type Application = ApplicationRecord;
+
+export type CareerState = {
+  profile: ResumeData;
+  pendingProfile?: ResumeData | null;
+  isOnboarded?: boolean;
+  userId?: string;
+  applications: ApplicationRecord[];
+  savedJobs: JobListing[];
+  activeRoadmap?: CareerRoadmap | null;
+  activeInterviewSession?: MockSession | null;
+  jobs: {
+    workflowId: string;
+    kind: string;
+    status: "running" | "done" | "error";
+  }[];
+};
+
 export type ResumeReviewParams = { resumeText: string; targetRole?: string };
 export type JobSearchParams = { query: string; location?: string };
-
